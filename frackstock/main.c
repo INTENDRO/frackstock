@@ -68,6 +68,24 @@ void twi_cb(uint8_t addr, uint8_t* data)
 	
 }
 
+void pin_debug(uint8_t value)
+{
+	PORTB |= (1<<DDB0);
+	wait_1ms(value);
+	PORTB &= ~(1<<DDB0);
+	wait_1ms(1);
+}
+
+void pin_debug_array(uint8_t* data, uint8_t length)
+{
+	uint8_t i;
+	
+	for(i=0; i<length; i++)
+	{
+		pin_debug(data[i]);
+	}
+}
+
 int main(void)
 {
     uint8_t send[] = {0x01,0x02,0x03};
@@ -86,21 +104,10 @@ int main(void)
 	twi_write(0x53, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	
-	PORTB |= (1<<DDB0);
-	wait_1ms(twi_report->error);
-	PORTB &= ~(1<<DDB0);
-	wait_1ms(1);
-	PORTB |= (1<<DDB0);
-	wait_1ms(twi_report->length);
-	PORTB &= ~(1<<DDB0);
-	
-	for(i=0; i<twi_report->length; i++)
-	{
-		PORTB |= (1<<DDB0);
-		wait_1ms(twi_report->data[i]);
-		PORTB &= ~(1<<DDB0);
-		wait_1ms(1);
-	}
+	pin_debug(twi_report->error);
+	pin_debug(twi_report->length);
+	pin_debug_array(twi_report->data,twi_report->length);
+
 	
     while (1) 
     {
