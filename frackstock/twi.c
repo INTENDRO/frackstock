@@ -1,17 +1,14 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/twi.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "twi.h"
 
 static volatile uint8_t busy;
-static struct {
-  uint8_t buffer[TWI_BUFFER_LENGTH];
-  uint8_t length;
-  uint8_t index;
-  void (*callback)(uint8_t, uint8_t *);
-} transmission;
+static twi_transmission_t transmission;
+static twi_report_t report;
 
 void twi_init() {
   TWBR = ((F_CPU / TWI_FREQ) - 16) / 2;
@@ -24,9 +21,9 @@ void twi_init() {
   TWCR = _BV(TWEN);
 }
 
-uint8_t *twi_wait() {
+twi_report_t *twi_wait() {
   while (busy);
-  return &transmission.buffer[1];
+  return &report;
 }
 
 void twi_start(void) {
@@ -62,17 +59,23 @@ void twi_reply() {
 }
 
 void twi_done() {
-  uint8_t address = transmission.buffer[0] >> 1;
-  uint8_t *data = &transmission.buffer[1];
+  //uint8_t address = transmission.buffer[0] >> 1;
+  //uint8_t *data = &transmission.buffer[1];
+  
+  if(report.error == 0)
+  {
+	  report.data = &transmission.buffer[0]; // not sure
+	  report.length = transmission.length; // not sure
+  }
 
   busy = 0;
 
   if (transmission.callback != NULL) {
-    transmission.callback(address, data);
+    transmission.callback(&report);
   }
 }
 
-void twi_write(uint8_t address, uint8_t* data, uint8_t length, void (*callback)(uint8_t, uint8_t *)) {
+void twi_write(uint8_t address, uint8_t* data, uint8_t length, report_cb_t report_cb) {
   twi_wait();
 
   busy = 1;
@@ -80,13 +83,17 @@ void twi_write(uint8_t address, uint8_t* data, uint8_t length, void (*callback)(
   transmission.buffer[0] = (address << 1) | TW_WRITE;
   transmission.length = length + 1;
   transmission.index = 0;
-  transmission.callback = callback;
+  transmission.callback = report_cb;
   memcpy(&transmission.buffer[1], data, length);
+  
+  report.error = 0;
+  report.data = NULL;
+  report.length = 0;
 
   twi_start();
 }
 
-void twi_read(uint8_t address, uint8_t length, void (*callback)(uint8_t, uint8_t *)) {
+void twi_read(uint8_t address, uint8_t length, report_cb_t report_cb) {
   twi_wait();
 
   busy = 1;
@@ -94,7 +101,11 @@ void twi_read(uint8_t address, uint8_t length, void (*callback)(uint8_t, uint8_t
   transmission.buffer[0] = (address << 1) | TW_READ;
   transmission.length = length + 1;
   transmission.index = 0;
-  transmission.callback = callback;
+  transmission.callback = report_cb;
+  
+  report.error = 0;
+  report.data = NULL;
+  report.length = 0;
 
   twi_start();
 }
@@ -133,6 +144,7 @@ ISR(TWI_vect) {
   case TW_MR_SLA_NACK:
   case TW_MT_DATA_NACK:
   default:
+	report.error = TW_STATUS;
     twi_stop();
     twi_done();
     break;

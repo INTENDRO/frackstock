@@ -71,7 +71,8 @@ void twi_cb(uint8_t addr, uint8_t* data)
 int main(void)
 {
     uint8_t send[] = {0x01,0x02,0x03};
-	uint8_t* twi_data;
+	twi_report_t* twi_report;
+	uint8_t i;
 	
 	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
@@ -82,12 +83,24 @@ int main(void)
 	
 	wait_1ms(1000);
 	
-	twi_write(0x52, send, sizeof(send), NULL);
-	twi_data = twi_wait();
+	twi_write(0x53, send, sizeof(send), NULL);
+	twi_report = twi_wait();
 	
 	PORTB |= (1<<DDB0);
-	wait_1ms(TW_STATUS);
+	wait_1ms(twi_report->error);
 	PORTB &= ~(1<<DDB0);
+	wait_1ms(1);
+	PORTB |= (1<<DDB0);
+	wait_1ms(twi_report->length);
+	PORTB &= ~(1<<DDB0);
+	
+	for(i=0; i<twi_report->length; i++)
+	{
+		PORTB |= (1<<DDB0);
+		wait_1ms(twi_report->data[i]);
+		PORTB &= ~(1<<DDB0);
+		wait_1ms(1);
+	}
 	
     while (1) 
     {
