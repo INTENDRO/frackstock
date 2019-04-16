@@ -12,7 +12,8 @@
 #include "twi.h"
 
 
-
+void pin_debug(uint8_t value);
+void pin_debug_array(uint8_t* data, uint8_t length);
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -42,7 +43,7 @@ void INT_1ms_stop(void)
 
 
 
-void wait_1ms(uint8_t factor)
+void wait_1ms(uint16_t factor)
 {
 	uint16_t i;
 	TCCR1A = 0b00000000;
@@ -62,9 +63,11 @@ void wait_1ms(uint8_t factor)
 	TCCR1B &= ~(0x07);
 }
 
-void twi_cb(uint8_t addr, uint8_t* data)
+void twi_cb(twi_report_t* report)
 {
-	
+	pin_debug(report->error);
+	pin_debug(report->length);
+	pin_debug_array(report->data,report->length);
 	
 }
 
@@ -89,8 +92,8 @@ void pin_debug_array(uint8_t* data, uint8_t length)
 int main(void)
 {
     uint8_t send[] = {0x01,0x02,0x03};
-	twi_report_t* twi_report;
-	uint8_t i;
+	//twi_report_t* twi_report;
+	//uint8_t i;
 	
 	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
@@ -101,17 +104,17 @@ int main(void)
 	
 	wait_1ms(1000);
 	
-	twi_write(0x53, send, sizeof(send), NULL);
-	twi_report = twi_wait();
+	twi_write(0x53, send, sizeof(send), twi_cb);
+	//twi_report = twi_wait();
 	
-	pin_debug(twi_report->error);
-	pin_debug(twi_report->length);
-	pin_debug_array(twi_report->data,twi_report->length);
+// 	pin_debug(twi_report->error);
+// 	pin_debug(twi_report->length);
+// 	pin_debug_array(twi_report->data,twi_report->length);
 
 	
     while (1) 
     {
-		wait_1ms(1);
+		PORTB ^= (1<<PORTB0);
     }
 }
 
