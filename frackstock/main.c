@@ -7,6 +7,11 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/twi.h>
+#include <stddef.h>
+#include "twi.h"
+
+
 
 
 ISR(TIMER1_COMPA_vect)
@@ -57,17 +62,35 @@ void wait_1ms(uint8_t factor)
 	TCCR1B &= ~(0x07);
 }
 
+void twi_cb(uint8_t addr, uint8_t* data)
+{
+	
+	
+}
+
 int main(void)
 {
-    DDRB |= (1<<DDB0);
+    uint8_t send[] = {0x01,0x02,0x03};
+	uint8_t* twi_data;
+	
+	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
 	
+	twi_init();
 	//INT_1ms_setup();
-	//sei();
+	sei();
+	
+	wait_1ms(1000);
+	
+	twi_write(0x52, send, sizeof(send), NULL);
+	twi_data = twi_wait();
+	
+	PORTB |= (1<<DDB0);
+	wait_1ms(TW_STATUS);
+	PORTB &= ~(1<<DDB0);
 	
     while (1) 
     {
-		PORTB ^= (1<<DDB0);
 		wait_1ms(1);
     }
 }
