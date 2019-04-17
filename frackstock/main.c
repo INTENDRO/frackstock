@@ -9,7 +9,15 @@
 #include <avr/interrupt.h>
 #include <util/twi.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "twi.h"
+
+
+#define MIN_RAMP_STEP 200
+#define MAX_RAMP_STEP 500
+#define RAMP_BOTTOM 10
+#define MIN_RAMP_TOP 11
+#define MAX_RAMP_TOP 100
 
 
 void pin_debug(uint8_t value);
@@ -121,11 +129,43 @@ void timer0_pwm_stop(void)
 	TCCR0B &= ~0x07;
 }
 
+uint16_t randreg = 10;
+
+uint16_t pseudorandom16 (void)
+{
+	uint16_t newbit = 0;
+
+	if (randreg == 0) {
+		randreg = 1;
+	}
+	if (randreg & 0x8000) newbit = 1;
+	if (randreg & 0x4000) newbit ^= 1;
+	if (randreg & 0x1000) newbit ^= 1;
+	if (randreg & 0x0008) newbit ^= 1;
+	randreg = (randreg << 1) + newbit;
+	return randreg;
+}
+
+uint16_t get_rand(uint16_t start, uint16_t stop)
+{
+	uint16_t rand;
+	rand = start + pseudorandom16()%(stop - start);
+	return rand;
+}
+
+int32_t Map(int32_t data, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max)
+{
+	return((data-in_min)*(out_max-out_min)/(in_max-in_min)+out_min);
+}
+
 int main(void)
 {
     uint8_t send[] = {0x01,0x02,0x03};
 	twi_report_t* twi_report;
 	//uint8_t i;
+
+	uint8_t up,top;
+	uint16_t step, duty;
 	
 	DDRD |= (1<<DDD6);
 
@@ -133,22 +173,53 @@ int main(void)
 	PORTB &= ~(1<<DDB0);
 	
 	timer0_pwm_init();
-	timer0_pwma_set_duty(10);
+	timer0_pwma_set_duty(RAMP_BOTTOM);
 	timer0_pwm_start();
 
-	twi_init();
-	//INT_1ms_setup();
-	sei();
 	
 	wait_1ms(1000);
 	
-	twi_write(0x53, send, sizeof(send), twi_cb);
-	//twi_write(0x53, send, sizeof(send), NULL);
-	//twi_report = twi_wait();
-	
-// 	pin_debug(twi_report->error);
-// 	pin_debug(twi_report->length);
-// 	pin_debug_array(twi_report->data,twi_report->length);
+	step = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+	top = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+
+	up = 1;
+	duty = 0;
+
+
+	while(1)
+	{
+		if(up)
+		{
+			if((UINT16_MAX-duty)<step)
+			{
+				duty = UINT16_MAX;
+				up = 0;
+			}
+			else
+			{
+				duty += step;
+			}
+		}
+		else
+		{
+			if((duty)<step)
+			{
+				duty = 0;
+				up = 1;
+
+				//NEW CALCULATION
+				step = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+				top = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+			}
+			else
+			{
+				duty -= step;
+			}
+		}
+
+		timer0_pwma_set_duty(Map(duty,0,UINT16_MAX,RAMP_BOTTOM,top));
+		wait_1ms(1);
+	}
 
 	while(1)
 	{
