@@ -16,8 +16,11 @@
 #define MIN_RAMP_STEP 200
 #define MAX_RAMP_STEP 500
 #define RAMP_BOTTOM 10
-#define MIN_RAMP_TOP 11
+#define MIN_RAMP_TOP 70
 #define MAX_RAMP_TOP 100
+#define MIN_RAMP_BOTTOM 40
+#define MAX_RAMP_BOTTOM 70
+
 
 
 void pin_debug(uint8_t value);
@@ -121,7 +124,7 @@ void timer0_pwmb_set_duty(uint8_t duty)
 
 void timer0_pwm_start(void)
 {
-	TCCR0B |= 0x05;
+	TCCR0B |= 0x02; //8kHz pwm @ 16MHz
 }
 
 void timer0_pwm_stop(void)
@@ -164,7 +167,7 @@ int main(void)
 	twi_report_t* twi_report;
 	//uint8_t i;
 
-	uint8_t up,top;
+	uint8_t up,top,bottom;
 	uint16_t step, duty;
 	
 	DDRD |= (1<<DDD6);
@@ -181,6 +184,7 @@ int main(void)
 	
 	step = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
 	top = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+	bottom = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 
 	up = 1;
 	duty = 0;
@@ -194,6 +198,10 @@ int main(void)
 			{
 				duty = UINT16_MAX;
 				up = 0;
+
+				//NEW CALCULATION
+				step = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+				bottom = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 			}
 			else
 			{
@@ -217,8 +225,10 @@ int main(void)
 			}
 		}
 
-		timer0_pwma_set_duty(Map(duty,0,UINT16_MAX,RAMP_BOTTOM,top));
+		timer0_pwma_set_duty(Map(duty,0,UINT16_MAX,bottom,top));
+		PORTB &= ~(1<<DDB0);
 		wait_1ms(1);
+		PORTB |= (1<<DDB0);
 	}
 
 	while(1)
