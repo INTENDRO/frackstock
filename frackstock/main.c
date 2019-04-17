@@ -21,6 +21,8 @@
 #define MIN_RAMP_BOTTOM 40
 #define MAX_RAMP_BOTTOM 70
 
+#define FLICKER_TEST
+
 
 
 void pin_debug(uint8_t value);
@@ -54,25 +56,6 @@ void pin_debug_array(uint8_t* data, uint8_t length);
 
 
 
-// void wait_1ms(uint16_t factor)
-// {
-// 	uint16_t i;
-// 	TCCR1A = 0b00000000;
-// 	TCCR1B = 0b00001000;
-// 	TIMSK1 = 0b00000000;
-// 	TIFR1 =  0b00000111;
-// 	TCNT1 = 0;
-// 	OCR1A = 16000;
-//
-// 	TCCR1B |= 0x01;
-//
-// 	for(i=0;i<factor;i++)
-// 	{
-// 		while(!(TIFR1&0x02));
-// 		TIFR1 = 0x07;
-// 	}
-// 	TCCR1B &= ~(0x07);
-// }
 
 void wait_1ms(uint16_t factor)
 {
@@ -143,16 +126,6 @@ void timer1_pwm_init(void)
 	OCR1B = 0;
 }
 
-// void timer2_pwm_init(void)
-// {
-// 	TCCR2A = 0b10100011;
-// 	TCCR2B = 0b00000000;
-// 	TIMSK2 = 0b00000000;
-// 
-// 	TCNT2 = 0;
-// 	OCR2A = 0;
-// 	OCR2B = 0;
-// }
 
 void timer0_pwma_set_duty(uint8_t duty)
 {
@@ -174,15 +147,6 @@ void timer1_pwmb_set_duty(uint8_t duty)
 	OCR1B = duty;
 }
 
-// void timer2_pwma_set_duty(uint8_t duty)
-// {
-// 	OCR2A = duty;
-// }
-// 
-// void timer2_pwmb_set_duty(uint8_t duty)
-// {
-// 	OCR2B = duty;
-// }
 
 void timer0_pwm_start(void)
 {
@@ -204,15 +168,6 @@ void timer1_pwm_stop(void)
 	TCCR1B &= ~0x07;
 }
 
-// void timer2_pwm_start(void)
-// {
-// 	TCCR2B |= 0x02; //8kHz pwm @ 16MHz
-// }
-// 
-// void timer2_pwm_stop(void)
-// {
-// 	TCCR2B &= ~0x07;
-// }
 
 uint16_t randreg = 10;
 
@@ -259,12 +214,10 @@ void set_duty(uint8_t num, uint8_t duty)
 			break;
 
 		case 2:
-			//timer2_pwma_set_duty(duty);
 			timer1_pwma_set_duty(duty);
 			break;
 
 		case 3:
-			//timer2_pwmb_set_duty(duty);
 			timer1_pwmb_set_duty(duty);
 			break;
 
@@ -277,29 +230,45 @@ void pwm_init(void)
 {
 	timer0_pwm_init();
 	timer1_pwm_init();
-	//timer2_pwm_init();
 }
 
 void pwm_start(void)
 {
 	timer0_pwm_start();
 	timer1_pwm_start();
-	//timer2_pwm_start();
 }
 
 void pwm_stop(void)
 {
 	timer0_pwm_stop();
 	timer1_pwm_stop();
-	//timer2_pwm_stop();
 }
+
+
+#ifdef ACCEL_TEST
 
 int main(void)
 {
-    uint8_t send[] = {0x01,0x02,0x03};
+	uint8_t send[] = {0x01,0x02,0x03};
 	twi_report_t* twi_report;
-	uint8_t i;
 
+	DDRB |= (1<<DDB0);
+	PORTB &= ~(1<<DDB0);
+
+
+	while(1)
+	{
+		
+	}
+}
+
+#endif
+
+#ifdef FLICKER_TEST
+int main(void)
+{
+    
+	uint8_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
 	
@@ -308,7 +277,6 @@ int main(void)
 
 	DDRB |= (1<<DDB1); //OC1A
 	DDRB |= (1<<DDB2); //OC1B
-
 
 
 	DDRB |= (1<<DDB0);
@@ -375,18 +343,6 @@ int main(void)
 		wait_1ms(1);
 		PORTB |= (1<<DDB0);
 	}
-
-	while(1)
-	{
-		timer0_pwma_set_duty(200);
-		wait_1ms(1000);
-		timer0_pwma_set_duty(10);
-		wait_1ms(1000);
-	}
-	
-    while (1) 
-    {
-		PORTB ^= (1<<PORTB0);
-    }
 }
+#endif
 
