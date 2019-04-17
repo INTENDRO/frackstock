@@ -89,15 +89,53 @@ void pin_debug_array(uint8_t* data, uint8_t length)
 	}
 }
 
+
+void timer0_pwm_init(void)
+{
+	TCCR0A = 0b10100011;
+	TCCR0B = 0b00000000;
+	TIMSK0 = 0b00000000;
+
+	TCNT0 = 0;
+	OCR0A = 0;
+	OCR0B = 0;
+}
+
+void timer0_pwma_set_duty(uint8_t duty)
+{
+	OCR0A = duty;
+}
+
+void timer0_pwmb_set_duty(uint8_t duty)
+{
+	OCR0B = duty;
+}
+
+void timer0_pwm_start(void)
+{
+	TCCR0B |= 0x05;
+}
+
+void timer0_pwm_stop(void)
+{
+	TCCR0B &= ~0x07;
+}
+
 int main(void)
 {
     uint8_t send[] = {0x01,0x02,0x03};
-	//twi_report_t* twi_report;
+	twi_report_t* twi_report;
 	//uint8_t i;
 	
+	DDRD |= (1<<DDD6);
+
 	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
 	
+	timer0_pwm_init();
+	timer0_pwma_set_duty(10);
+	timer0_pwm_start();
+
 	twi_init();
 	//INT_1ms_setup();
 	sei();
@@ -105,12 +143,20 @@ int main(void)
 	wait_1ms(1000);
 	
 	twi_write(0x53, send, sizeof(send), twi_cb);
+	//twi_write(0x53, send, sizeof(send), NULL);
 	//twi_report = twi_wait();
 	
 // 	pin_debug(twi_report->error);
 // 	pin_debug(twi_report->length);
 // 	pin_debug_array(twi_report->data,twi_report->length);
 
+	while(1)
+	{
+		timer0_pwma_set_duty(200);
+		wait_1ms(1000);
+		timer0_pwma_set_duty(10);
+		wait_1ms(1000);
+	}
 	
     while (1) 
     {
