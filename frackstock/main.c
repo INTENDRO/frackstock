@@ -14,15 +14,15 @@
 
 
 #define MIN_RAMP_STEP 200
-#define MAX_RAMP_STEP 500
+#define MAX_RAMP_STEP 400
 #define RAMP_BOTTOM 10
-#define MIN_RAMP_TOP 70
-#define MAX_RAMP_TOP 100
-#define MIN_RAMP_BOTTOM 40
-#define MAX_RAMP_BOTTOM 70
+#define MIN_RAMP_TOP 200
+#define MAX_RAMP_TOP 250
+#define MIN_RAMP_BOTTOM 30
+#define MAX_RAMP_BOTTOM 50
 
-//#define FLICKER_TEST
-#define ACCEL_TEST
+#define FLICKER_TEST
+//#define ACCEL_TEST
 
 #define ADXL345_ADDRESS 0x53
 /* ADXL345/6 Register Map */
