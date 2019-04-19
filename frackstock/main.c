@@ -21,8 +21,8 @@
 #define MIN_RAMP_BOTTOM 30
 #define MAX_RAMP_BOTTOM 50
 
-#define FLICKER_TEST
-//#define ACCEL_TEST
+//#define FLICKER_TEST
+#define ACCEL_TEST
 
 #define ADXL345_ADDRESS 0x53
 /* ADXL345/6 Register Map */
@@ -114,9 +114,9 @@ void wait_1ms(uint16_t factor)
 
 void twi_cb(twi_report_t* report)
 {
-	pin_debug(report->error);
-	pin_debug(report->length);
-	pin_debug_array(report->data,report->length);
+// 	pin_debug(report->error);
+// 	pin_debug(report->length);
+// 	pin_debug_array(report->data,report->length);
 	
 }
 
@@ -348,7 +348,7 @@ int8_t accel_init(void)
 	}
 	
 	send[0] = INT_ENABLE;
-	send[1] = 0x00; // zero y-offset
+	send[1] = 0x00;
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
@@ -359,7 +359,7 @@ int8_t accel_init(void)
 	return 0;
 }
 
-int8_t accel_x(uint16_t* value)
+int8_t accel_x(int16_t* value)
 {
 	twi_report_t* twi_report;
 	uint8_t send[1];
@@ -385,7 +385,7 @@ int8_t accel_x(uint16_t* value)
 		return -3;
 	}
 	
-	*value = ((((uint16_t)twi_report->data[1])<<8) | ((uint16_t)twi_report->data[0])) & 0x03FF;
+	*value = (int16_t)((((uint16_t)(twi_report->data[1]))<<8) | ((uint16_t)(twi_report->data[0])));
 	
 	return 0;
 }
@@ -397,7 +397,8 @@ int main(void)
 {
 	uint8_t send[] = {0x01,0x02,0x03};
 	twi_report_t* twi_report;
-	uint16_t value;
+	int16_t value = 1;
+	int8_t err = 10;
 
 	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
@@ -408,12 +409,33 @@ int main(void)
 	accel_init();
 	wait_1ms(10);
 	
+	err = accel_x(&value);
+// 	if(err == 0)
+// 	{
+// 		PORTB |= (1<<DDB0);
+// 	}
+// 	else
+// 	{
+// 		PORTB &= ~(1<<DDB0);
+// 	}
+	
+	pin_debug((uint8_t)err);
+	//pin_debug((uint8_t)(((uint16_t)value)/10));
+ 	pin_debug((uint8_t)(value>>8));
+ 	pin_debug((uint8_t)(value));
+	
+	while(1)
+	{
+		
+	}
 
 	while(1)
 	{
-		accel_x(&value);
+		err = accel_x(&value);
 		PORTB |= (1<<DDB0);
-		wait_1ms(value);
+		wait_1ms(err);
+		//wait_1ms(value);
+		//wait_1ms(1000);
 		PORTB &= ~(1<<DDB0);
 		
 		wait_1ms(1000);

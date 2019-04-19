@@ -64,8 +64,9 @@ void twi_done() {
   
   if(report.error == 0)
   {
-	  report.data = &transmission.buffer[0]; // not sure
-	  report.length = transmission.length; // not sure
+	  report.address = transmission.buffer[0];
+	  report.data = &transmission.buffer[1]; // not sure
+	  report.length = transmission.length-1; // not sure
   }
 
   busy = 0;
