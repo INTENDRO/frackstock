@@ -11,6 +11,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "twi.h"
+#include "uart.h"
 
 
 #define MIN_RAMP_STEP 200
@@ -320,33 +321,6 @@ int8_t accel_init(void)
 		return -4;
 	}
 	
-	send[0] = OFSX;
-	send[1] = 0x00; // zero x-offset
-	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
-	twi_report = twi_wait();
-	if(twi_report->error != 0)
-	{
-		return -5;
-	}
-	
-	send[0] = OFSY;
-	send[1] = 0x00; // zero y-offset
-	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
-	twi_report = twi_wait();
-	if(twi_report->error != 0)
-	{
-		return -6;
-	}
-	
-	send[0] = OFSZ;
-	send[1] = 0x00; // zero z-offset
-	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
-	twi_report = twi_wait();
-	if(twi_report->error != 0)
-	{
-		return -7;
-	}
-	
 	send[0] = INT_ENABLE;
 	send[1] = 0x00;
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
@@ -372,6 +346,35 @@ int8_t accel_x(int16_t* value)
 		return -1;
 	}
 	
+	twi_read(ADXL345_ADDRESS, 2, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 2)
+	{
+		return -3;
+	}
+	
+	*value = (int16_t)((((uint16_t)(twi_report->data[1]))<<8) | ((uint16_t)(twi_report->data[0])));
+	
+	return 0;
+}
+
+int8_t accel_y(int16_t* value)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = DATAY0;
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
 	
 	twi_read(ADXL345_ADDRESS, 2, NULL);
 	twi_report = twi_wait();
@@ -390,18 +393,85 @@ int8_t accel_x(int16_t* value)
 	return 0;
 }
 
+int8_t accel_z(int16_t* value)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = DATAZ0;
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	
+	twi_read(ADXL345_ADDRESS, 2, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 2)
+	{
+		return -3;
+	}
+	
+	*value = (int16_t)((((uint16_t)(twi_report->data[1]))<<8) | ((uint16_t)(twi_report->data[0])));
+	
+	return 0;
+}
+
+int8_t accel_xyz(int16_t* x, int16_t* y, int16_t* z)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = DATAX0;
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	
+	twi_read(ADXL345_ADDRESS, 6, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 6)
+	{
+		return -3;
+	}
+	
+	*x = (int16_t)((((uint16_t)(twi_report->data[1]))<<8) | ((uint16_t)(twi_report->data[0])));
+	*y = (int16_t)((((uint16_t)(twi_report->data[3]))<<8) | ((uint16_t)(twi_report->data[2])));
+	*z = (int16_t)((((uint16_t)(twi_report->data[5]))<<8) | ((uint16_t)(twi_report->data[4])));
+	
+	return 0;
+}
+
 
 #ifdef ACCEL_TEST
 
 int main(void)
 {
 	uint8_t send[] = {0x01,0x02,0x03};
+	uint8_t uart_send[64];
 	twi_report_t* twi_report;
 	int16_t value = 1;
+	int16_t x,y,z;
 	int8_t err = 10;
 
 	DDRB |= (1<<DDB0);
 	PORTB &= ~(1<<DDB0);
+	
+	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
+	wait_1ms(1);
 	
 	twi_init();
 	wait_1ms(1);
@@ -409,24 +479,25 @@ int main(void)
 	accel_init();
 	wait_1ms(10);
 	
-	err = accel_x(&value);
-// 	if(err == 0)
-// 	{
-// 		PORTB |= (1<<DDB0);
-// 	}
-// 	else
-// 	{
-// 		PORTB &= ~(1<<DDB0);
-// 	}
-	
-	pin_debug((uint8_t)err);
-	//pin_debug((uint8_t)(((uint16_t)value)/10));
- 	pin_debug((uint8_t)(value>>8));
- 	pin_debug((uint8_t)(value));
+
+	while(1)
+	{
+		err = accel_xyz(&x, &y, &z);
+		sprintf(uart_send, "err = %d\r\n",err);
+		uart0_puts(uart_send);
+		sprintf(uart_send, "x = %d y = %d z = %d\r\n", x, y, z);
+		uart0_puts(uart_send);
+		wait_1ms(500);
+	}
 	
 	while(1)
 	{
-		
+		err = accel_x(&value);
+		sprintf(uart_send, "err = %d\r\n",err);
+		uart0_puts(uart_send);
+		sprintf(uart_send, "value = %d\r\n",value);
+		uart0_puts(uart_send);
+		wait_1ms(500);
 	}
 
 	while(1)
