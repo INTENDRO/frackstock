@@ -11,6 +11,27 @@
 
 static uint16_t randreg = 10;
 
+
+void timer2_int_2ms_init(void)
+{
+	TCCR2A = 0b00000010;
+	TCCR2B = 0b00000000;
+	TIMSK2 = 0b00000010;
+	TIFR2 =  0b00000111;
+	TCNT2 = 0;
+	OCR2A = 250;
+}
+
+void timer2_int_2ms_start(void)
+{
+	TCCR2B |= 0x05;
+}
+
+void timer2_int_2ms_stop(void)
+{
+	TCCR2B &= ~0x07;
+}
+
 void wait_1ms(uint16_t factor)
 {
 	uint16_t i;
@@ -30,7 +51,6 @@ void wait_1ms(uint16_t factor)
 	}
 	TCCR2B &= ~(0x07);
 }
-
 
 void timer0_pwm_init(void)
 {
