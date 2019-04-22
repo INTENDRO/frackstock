@@ -25,13 +25,8 @@
 #define MIN_RAMP_BOTTOM 30
 #define MAX_RAMP_BOTTOM 50
 
-#define TURNAROUND_ACCEL_THRESHOLD 100
-#define TURNAROUND_MEASUREMENT_AMOUNT 1000u
-#define TURNAROUND_THRESHOLD 900u
-
-#define TURNAROUND_INTEGRATE_MAX 1000
-#define TURNAROUND_UPPER 800
-#define TURNAROUND_LOWER 700
+#define LAMBDA 0.05f
+#define TURNOVER_THRESHOLD 230
 
 
 
@@ -43,18 +38,33 @@ ISR(TIMER2_COMPA_vect)
 }
 
 
+int16_t lowpass(int16_t value)
+{
+	static int16_t output = 0;
+
+	output += (int16_t)(LAMBDA * (float)(value - output));
+	return output;
+}
+
+int16_t clamp(int16_t value, int16_t min, int16_t max)
+{
+	if(value>max) value = max;
+	if(value<min) value = min;
+	return value;
+}
+
+
 int main(void)
 {
 	int8_t err;
-	int16_t x,y,z;
+	int16_t x,y,z,y_filt;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
 	uint16_t accel_count, accel_max_count;
-	uint8_t turnaround_array[TURNAROUND_MEASUREMENT_AMOUNT];
-	uint16_t turnaround_index, turnaround_temp;
-	uint16_t turnaround_integrate;
-	uint8_t turnaround;
+	uint8_t turnover;
+	uint8_t uart_send[64];
+
 	
 	
 	DDRD |= (1<<DDD6); //OC0A
@@ -67,6 +77,8 @@ int main(void)
 	DDRB |= (1<<DDB0); //DEBUG PIN
 	PORTB &= ~(1<<DDB0);
 	
+	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
+	wait_1ms(1);
 	
 	twi_init();
 	wait_1ms(1);
@@ -99,13 +111,7 @@ int main(void)
 	accel_max_count = 5;
 	accel_count = 0;
 	
-	for(i=0; i<TURNAROUND_MEASUREMENT_AMOUNT; i++)
-	{
-		turnaround_array[i] = 0;
-	}
-	turnaround_index = 0;
-	turnaround = 0;
-	turnaround_integrate = 0;
+	turnover = 0;
 
 	while(1)
 	{
@@ -148,7 +154,15 @@ int main(void)
 						duty[i] -= step[i];
 					}
 				}
-				set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
+				if(turnover)
+				{
+					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
+				}
+				else
+				{
+					set_duty(i,0);
+				}
+				
 			}
 			
 			// get sensor data
@@ -157,62 +171,19 @@ int main(void)
 			{
 				accel_count = 0;
 				err = accel_y(&y);
-				
-				if(y > TURNAROUND_ACCEL_THRESHOLD)
+				y = clamp(y,-512, 511);
+				y_filt = lowpass(y);
+				//set_duty(0,Map(y,-512,511,0,255));
+				//set_duty(1,Map(y_filt,-512,511,0,255));
+
+				if(y_filt > TURNOVER_THRESHOLD)
 				{
-					if(turnaround_integrate<TURNAROUND_INTEGRATE_MAX)
-					{
-						turnaround_integrate++;
-					}
-					
+					turnover = 1;
 				}
 				else
 				{
-					if(turnaround_integrate>0)
-					{
-						turnaround_integrate--;
-					}
+					turnover = 0;
 				}
-				
-				if(turnaround_integrate > TURNAROUND_UPPER)
-				{
-					PORTB |= (1<<PORTB0);
-				}
-				
-				if(turnaround_integrate < TURNAROUND_LOWER)
-				{
-					PORTB &= ~(1<<PORTB0);
-				}
-				
-// 				if(y > TURNAROUND_ACCEL_THRESHOLD)
-// 				{
-// 					turnaround_array[turnaround_index] = 1;
-// 				}
-// 				else
-// 				{
-// 					turnaround_array[turnaround_index] = 0;
-// 				}
-// 				
-// 				turnaround_index++;
-// 				if(turnaround_index >= TURNAROUND_MEASUREMENT_AMOUNT)
-// 				{
-// 					turnaround_index = 0;
-// 				}
-// 				
-// 				turnaround_temp = 0;
-// 				for(i=0; i<TURNAROUND_MEASUREMENT_AMOUNT; i++)
-// 				{
-// 					turnaround_temp += turnaround_array[i];
-// 				}
-// 				
-// 				if(turnaround_temp > TURNAROUND_THRESHOLD)
-// 				{
-// 					PORTB |= (1<<PORTB0);
-// 				}
-// 				else
-// 				{
-// 					PORTB &= ~(1<<PORTB0);
-// 				}
 			}
 			
 			//PORTB &= ~(1<<PORTB0);
