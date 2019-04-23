@@ -10,7 +10,9 @@
 #define UTILS_H_
 
 
-
+void timer2_int_2ms_init(void);
+void timer2_int_2ms_start(void);
+void timer2_int_2ms_stop(void);
 void wait_1ms(uint16_t factor);
 void timer0_pwm_init(void);
 void timer1_pwm_init(void);

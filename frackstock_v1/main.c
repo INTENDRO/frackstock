@@ -25,8 +25,8 @@
 #define MIN_RAMP_BOTTOM 30
 #define MAX_RAMP_BOTTOM 50
 
-#define LAMBDA 0.05f
-#define TURNOVER_THRESHOLD 230
+#define LAMBDA 0.1f
+#define TURNOVER_THRESHOLD 220
 
 
 
@@ -53,28 +53,45 @@ int16_t clamp(int16_t value, int16_t min, int16_t max)
 	return value;
 }
 
+uint8_t get_turnover_state(int16_t y)
+{
+	int16_t y_filt;
+	
+	y = clamp(y,-512, 511);
+	y_filt = lowpass(y);
+	//set_duty(0,Map(y,-512,511,0,255));
+	//set_duty(1,Map(y_filt,-512,511,0,255));
+
+	if(y_filt > TURNOVER_THRESHOLD)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 
 int main(void)
 {
 	int8_t err;
-	int16_t x,y,z,y_filt;
+	int16_t y;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
 	uint16_t accel_count, accel_max_count;
-	uint8_t turnover;
-	uint8_t uart_send[64];
+	uint8_t turnover, turnover_old, leds_on;
 
 	
 	
-	DDRD |= (1<<DDD6); //OC0A
-	DDRD |= (1<<DDD5); //OC0B
+	DDRD |= (1<<DDD6); //OC0A / D6
+	DDRD |= (1<<DDD5); //OC0B / D5
 
-	DDRB |= (1<<DDB1); //OC1A
-	DDRB |= (1<<DDB2); //OC1B
+	DDRB |= (1<<DDB1); //OC1A / D9
+	DDRB |= (1<<DDB2); //OC1B / D10
 
-
-	DDRB |= (1<<DDB0); //DEBUG PIN
+	DDRB |= (1<<DDB0); //DEBUG PIN / D8
 	PORTB &= ~(1<<DDB0);
 	
 	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
@@ -100,25 +117,23 @@ int main(void)
 
 		set_duty(i,bottom[i]);
 	}
-
-	pwm_start();
-	
 	
 	sei();
 	timer2_int_2ms_init();
 	timer2_int_2ms_start();
 
-	accel_max_count = 5;
+	accel_max_count = 25;
 	accel_count = 0;
 	
 	turnover = 0;
+	turnover_old = 0;
+	leds_on = 0;
 
 	while(1)
 	{
 		if(isr_flag)
 		{
 			isr_flag = 0;
-			//PORTB |= (1<<PORTB0);
 			// calculate led output
 			for(i=0; i<4; i++)
 			{
@@ -154,14 +169,7 @@ int main(void)
 						duty[i] -= step[i];
 					}
 				}
-				if(turnover)
-				{
-					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
-				}
-				else
-				{
-					set_duty(i,0);
-				}
+				set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 				
 			}
 			
@@ -171,24 +179,26 @@ int main(void)
 			{
 				accel_count = 0;
 				err = accel_y(&y);
-				y = clamp(y,-512, 511);
-				y_filt = lowpass(y);
-				//set_duty(0,Map(y,-512,511,0,255));
-				//set_duty(1,Map(y_filt,-512,511,0,255));
-
-				if(y_filt > TURNOVER_THRESHOLD)
+				turnover = get_turnover_state(y);
+				if(turnover && !turnover_old)
 				{
-					turnover = 1;
+					if(leds_on)
+					{
+						leds_on = 0;
+						pwm_stop();
+						PORTD &= ~(1<<PORTD6);
+						PORTD &= ~(1<<PORTD5);
+						PORTB &= ~(1<<PORTB1);
+						PORTB &= ~(1<<PORTB2);
+					}
+					else
+					{
+						leds_on = 1;
+						pwm_start();
+					}
 				}
-				else
-				{
-					turnover = 0;
-				}
+				turnover_old = turnover;
 			}
-			
-			//PORTB &= ~(1<<PORTB0);
-			
-			
 		}
 	}
 }
