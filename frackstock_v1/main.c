@@ -73,6 +73,25 @@ uint8_t get_turnover_state(int16_t y)
 }
 
 
+int8_t gyro_init(void)
+{
+	uint8_t send[2];
+	twi_report_t* twi_report;
+	
+	
+	
+	send[0] = 0x3E;
+	send[1] = 0x78; 
+	twi_write(0x68, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	return 0;
+}
+
+
 int main(void)
 {
 	int8_t err;
@@ -114,6 +133,9 @@ int main(void)
 	wait_1ms(1);
 	
 	accel_init();
+	wait_1ms(1);
+	
+	gyro_init();
 	wait_1ms(1);
 	
 	
