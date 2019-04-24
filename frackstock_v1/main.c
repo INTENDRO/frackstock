@@ -186,14 +186,12 @@ int main(void)
 					{
 						leds_on = 0;
 						pwm_stop();
-						PORTD &= ~(1<<PORTD6);
-						PORTD &= ~(1<<PORTD5);
-						PORTB &= ~(1<<PORTB1);
-						PORTB &= ~(1<<PORTB2);
+						
 					}
 					else
 					{
 						leds_on = 1;
+						pwm_init();
 						pwm_start();
 					}
 				}

@@ -157,6 +157,16 @@ void pwm_stop(void)
 {
 	timer0_pwm_stop();
 	timer1_pwm_stop();
+
+	TCCR0A = 0;
+	TCNT0 = 0;
+
+	TCCR1A = 0;
+	TCNT1 = 0;
+	PORTD &= ~(1<<PORTD6);
+	PORTD &= ~(1<<PORTD5);
+	PORTB &= ~(1<<PORTB1);
+	PORTB &= ~(1<<PORTB2);
 }
 
 
