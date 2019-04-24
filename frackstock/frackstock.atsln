@@ -7,6 +7,8 @@ Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock", "frackstock.cp
 EndProject
 Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock_v1", "..\frackstock_v1\frackstock_v1.cproj", "{11DD04BB-3831-447C-9F25-5A499C8A6532}"
 EndProject
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock_v2", "..\frackstock_v2\frackstock_v2.cproj", "{258C1203-BF77-4E09-BF61-EF0C28DAF2CD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|AVR = Debug|AVR
@@ -21,6 +23,10 @@ Global
 		{11DD04BB-3831-447C-9F25-5A499C8A6532}.Debug|AVR.Build.0 = Debug|AVR
 		{11DD04BB-3831-447C-9F25-5A499C8A6532}.Release|AVR.ActiveCfg = Release|AVR
 		{11DD04BB-3831-447C-9F25-5A499C8A6532}.Release|AVR.Build.0 = Release|AVR
+		{258C1203-BF77-4E09-BF61-EF0C28DAF2CD}.Debug|AVR.ActiveCfg = Debug|AVR
+		{258C1203-BF77-4E09-BF61-EF0C28DAF2CD}.Debug|AVR.Build.0 = Debug|AVR
+		{258C1203-BF77-4E09-BF61-EF0C28DAF2CD}.Release|AVR.ActiveCfg = Release|AVR
+		{258C1203-BF77-4E09-BF61-EF0C28DAF2CD}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
