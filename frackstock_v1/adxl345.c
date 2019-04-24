@@ -19,7 +19,7 @@ int8_t accel_init(void)
 	twi_report_t* twi_report;
 	
 	send[0] = BW_RATE;
-	send[1] = 0x0A; // normal power, 100hz output rate (bw 50hz)
+	send[1] = 0x1A; // low power, 100hz output rate (bw 50hz)
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)

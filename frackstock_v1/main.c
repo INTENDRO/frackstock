@@ -94,8 +94,21 @@ int main(void)
 	DDRB |= (1<<DDB0); //DEBUG PIN / D8
 	PORTB &= ~(1<<DDB0);
 	
-	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
-	wait_1ms(1);
+	DDRB &= ~(1<<DDB3) & ~(1<<DDB4) & ~(1<<DDB5);
+	PORTB |= (1<<PORTB3) | (1<<PORTB4) | (1<<PORTB5);
+	
+	DDRC &= ~(1<<DDC0) & ~(1<<DDC1) & ~(1<<DDC2) & ~(1<<DDC3);
+	PORTC |= (1<<PORTC0) | (1<<PORTC1) | (1<<PORTC2) | (1<<PORTC3);
+	
+	DDRD &= ~(1<<DDD0) & ~(1<<DDD1) & ~(1<<DDD2) & ~(1<<DDD3) & ~(1<<DDD4) & ~(1<<DDD7);
+	PORTD |= (1<<PORTD0) | (1<<PORTD1) | (1<<PORTD2) | (1<<PORTD3) | (1<<PORTD4) | (1<<PORTD7);
+	
+	
+	PRR |= (1<<PRADC) | (1<<PRUSART0);
+	DIDR0 = 0b00001111; //disable digital buffer of ADC3 - ADC0
+	
+// 	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
+// 	wait_1ms(1);
 	
 	twi_init();
 	wait_1ms(1);
@@ -119,10 +132,13 @@ int main(void)
 	}
 	
 	sei();
-	timer2_int_2ms_init();
-	timer2_int_2ms_start();
+// 	timer2_int_2ms_init();
+// 	timer2_int_2ms_start();
+	
+	timer2_int_5ms_init();
+	timer2_int_5ms_start();
 
-	accel_max_count = 25;
+	accel_max_count = 10; 
 	accel_count = 0;
 	
 	turnover = 0;
@@ -134,6 +150,7 @@ int main(void)
 		if(isr_flag)
 		{
 			isr_flag = 0;
+			PORTB |= (1<<DDB0);
 			// calculate led output
 			for(i=0; i<4; i++)
 			{
@@ -197,6 +214,7 @@ int main(void)
 				}
 				turnover_old = turnover;
 			}
+			PORTB &= ~(1<<DDB0);
 		}
 	}
 }

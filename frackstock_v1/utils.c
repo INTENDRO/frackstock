@@ -19,18 +19,41 @@ void timer2_int_2ms_init(void)
 	TIMSK2 = 0b00000010;
 	TIFR2 =  0b00000111;
 	TCNT2 = 0;
-	OCR2A = 250;
+	//OCR2A = 250; //16MHZ
+	OCR2A = 125; //8MHZ
 }
 
 void timer2_int_2ms_start(void)
 {
-	TCCR2B |= 0x05;
+	TCCR2B |= 0x05; //8MHZ & 16MHZ
 }
 
 void timer2_int_2ms_stop(void)
 {
 	TCCR2B &= ~0x07;
 }
+
+void timer2_int_5ms_init(void)
+{
+	TCCR2A = 0b00000010;
+	TCCR2B = 0b00000000;
+	TIMSK2 = 0b00000010;
+	TIFR2 =  0b00000111;
+	TCNT2 = 0;
+	OCR2A = 39; //2MHZ
+}
+
+void timer2_int_5ms_start(void)
+{
+	TCCR2B |= 0x06; //2MHZ
+}
+
+void timer2_int_5ms_stop(void)
+{
+	TCCR2B &= ~0x07;
+}
+
+
 
 void wait_1ms(uint16_t factor)
 {
@@ -98,7 +121,7 @@ void timer1_pwmb_set_duty(uint8_t duty)
 
 void timer0_pwm_start(void)
 {
-	TCCR0B |= 0x02; //8kHz pwm @ 16MHz
+	TCCR0B |= 0x01; 
 }
 
 void timer0_pwm_stop(void)
@@ -108,7 +131,7 @@ void timer0_pwm_stop(void)
 
 void timer1_pwm_start(void)
 {
-	TCCR1B |= 0x02; //8kHz pwm @ 16MHz
+	TCCR1B |= 0x01; 
 }
 
 void timer1_pwm_stop(void)
