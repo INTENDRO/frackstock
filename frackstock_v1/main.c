@@ -13,8 +13,8 @@
 #include <util/twi.h>
 #include "utils.h"
 #include "twi.h"
-#include "uart.h"
 #include "adxl345.h"
+#include "itg3205.h"
 
 
 #define MIN_RAMP_STEP 200
@@ -59,7 +59,7 @@ uint8_t get_turnover_state(int16_t y)
 	
 	y = clamp(y,-512, 511);
 	y_filt = lowpass(y);
-	//set_duty(0,Map(y,-512,511,0,255));
+	//set_duty(0,Map(y,-512,511,0,255)); //debug output
 	//set_duty(1,Map(y_filt,-512,511,0,255));
 
 	if(y_filt > TURNOVER_THRESHOLD)
@@ -73,23 +73,7 @@ uint8_t get_turnover_state(int16_t y)
 }
 
 
-int8_t gyro_init(void)
-{
-	uint8_t send[2];
-	twi_report_t* twi_report;
-	
-	
-	
-	send[0] = 0x3E;
-	send[1] = 0x78; 
-	twi_write(0x68, send, sizeof(send), NULL);
-	twi_report = twi_wait();
-	if(twi_report->error != 0)
-	{
-		return -1;
-	}
-	return 0;
-}
+
 
 
 int main(void)
@@ -113,6 +97,7 @@ int main(void)
 	DDRB |= (1<<DDB0); //DEBUG PIN / D8
 	PORTB &= ~(1<<DDB0);
 	
+	//set all unused pins to inputs with pullups (minimize current consumption)
 	DDRB &= ~(1<<DDB3) & ~(1<<DDB4) & ~(1<<DDB5);
 	PORTB |= (1<<PORTB3) | (1<<PORTB4) | (1<<PORTB5);
 	
@@ -122,12 +107,11 @@ int main(void)
 	DDRD &= ~(1<<DDD0) & ~(1<<DDD1) & ~(1<<DDD2) & ~(1<<DDD3) & ~(1<<DDD4) & ~(1<<DDD7);
 	PORTD |= (1<<PORTD0) | (1<<PORTD1) | (1<<PORTD2) | (1<<PORTD3) | (1<<PORTD4) | (1<<PORTD7);
 	
-	
+	//turn off unused modules
 	PRR |= (1<<PRADC) | (1<<PRUSART0);
-	DIDR0 = 0b00001111; //disable digital buffer of ADC3 - ADC0
 	
-// 	uart0_init(UART_BAUD_SELECT(115200, 16000000l));
-// 	wait_1ms(1);
+	//disable digital buffer of ADC3 - ADC0
+	DIDR0 = 0b00001111; 
 	
 	twi_init();
 	wait_1ms(1);
@@ -154,7 +138,7 @@ int main(void)
 	}
 	
 	sei();
-// 	timer2_int_2ms_init();
+// 	timer2_int_2ms_init();  //higher data acquisition rate
 // 	timer2_int_2ms_start();
 	
 	timer2_int_5ms_init();

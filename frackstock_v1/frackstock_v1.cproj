@@ -142,6 +142,12 @@
     <Compile Include="adxl345.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="itg3205.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="itg3205.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="main.c">
       <SubType>compile</SubType>
     </Compile>
@@ -149,12 +155,6 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="twi.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="uart.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="uart.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="utils.c">
