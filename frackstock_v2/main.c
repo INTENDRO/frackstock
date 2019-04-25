@@ -29,6 +29,7 @@
 #define LAMBDA 0.1f
 #define TURNOVER_THRESHOLD 220
 
+
 typedef enum
 {
 	OFF,
@@ -168,6 +169,9 @@ int main(void)
 	DDRB |= (1<<DDB0); //DEBUG PIN / D8
 	PORTB &= ~(1<<DDB0);
 	
+	DDRD |= (1<<DDB7);
+	PORTD &= ~(1<<PORTD7); //imu power supply
+	
 	//set all unused pins to inputs with pullups (minimize current consumption)
 	DDRB &= ~(1<<DDB3) & ~(1<<DDB4) & ~(1<<DDB5);
 	PORTB |= (1<<PORTB3) | (1<<PORTB4) | (1<<PORTB5);
@@ -175,8 +179,8 @@ int main(void)
 	DDRC &= ~(1<<DDC0) & ~(1<<DDC1) & ~(1<<DDC2) & ~(1<<DDC3);
 	PORTC |= (1<<PORTC0) | (1<<PORTC1) | (1<<PORTC2) | (1<<PORTC3);
 	
-	DDRD &= ~(1<<DDD0) & ~(1<<DDD1) & ~(1<<DDD2) & ~(1<<DDD3) & ~(1<<DDD4) & ~(1<<DDD7);
-	PORTD |= (1<<PORTD0) | (1<<PORTD1) | (1<<PORTD2) | (1<<PORTD3) | (1<<PORTD4) | (1<<PORTD7);
+	DDRD &= ~(1<<DDD0) & ~(1<<DDD1) & ~(1<<DDD2) & ~(1<<DDD3) & ~(1<<DDD4);
+	PORTD |= (1<<PORTD0) | (1<<PORTD1) | (1<<PORTD2) | (1<<PORTD3) | (1<<PORTD4);
 	
 	//turn off unused modules
 	PRR |= (1<<PRADC) | (1<<PRUSART0);
@@ -184,6 +188,8 @@ int main(void)
 	//disable digital buffer of ADC3 - ADC0
 	DIDR0 = 0b00001111; 
 	
+	wait_1ms(100);
+	PORTD |= (1<<PORTD7);
 	
 	twi_init();
 	wait_1ms(1);
@@ -255,8 +261,6 @@ int main(void)
 					{
 						if(turnover) //entering menu
 						{
-							while(1);
-							
 							connected = are_pwm_pins_connected();
 							pwm_disconnect_pins();
 							for(i=0;i<5;i++)
