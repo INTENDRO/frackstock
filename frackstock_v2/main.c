@@ -26,6 +26,10 @@
 #define MIN_RAMP_BOTTOM 30
 #define MAX_RAMP_BOTTOM 50
 
+#define ON_BRIGHTNESS_DEFAULT 100
+
+#define SOS_DIT_LENGTH 30
+
 #define LAMBDA 0.1f
 #define TURNOVER_THRESHOLD 220
 
@@ -33,10 +37,12 @@
 typedef enum
 {
 	OFF,
-	ON
+	ON,
+	TWINKLE,
+	SOS
 }mode_t;
 
-mode_t mode = ON;
+mode_t mode = SOS;
 
 volatile uint8_t isr_flag = 0;
 
@@ -133,6 +139,28 @@ void set_all_led_pins(uint8_t value)
 }
 
 
+void twinkle_setup(uint8_t* up, uint8_t* top, uint8_t* bottom, uint16_t* step, uint16_t* duty)
+{
+	uint8_t i;
+	
+	for(i=0;i<4;i++)
+	{
+		step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+		top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+		bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
+
+		up[i] = 1;
+		duty[i] = 0;
+	}
+}
+
+void sos_setup(uint16_t* count, uint8_t* stage)
+{
+	*count = 0;
+	*stage = 0;
+}
+
+
 int main(void)
 {
 	int8_t err;
@@ -144,6 +172,10 @@ int main(void)
 	uint16_t imu_count, imu_max_count;
 	uint8_t turnover, turnover_old, leds_on;
 	uint8_t watchdog_reset;
+	uint8_t on_brightness = ON_BRIGHTNESS_DEFAULT;
+	uint16_t sos_count, sos_temp;
+	uint8_t sos_stage;
+	
 	
 	
 	if(MCUSR & (1<<WDRF))
@@ -200,16 +232,7 @@ int main(void)
 	gyro_init();
 	wait_1ms(1);
 	
-
-	for(i=0;i<4;i++)
-	{
-		step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
-		top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
-		bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
-
-		up[i] = 1;
-		duty[i] = 0;
-	}
+	
 	
 	sei();
 	
@@ -237,8 +260,13 @@ int main(void)
 	leds_on = 0;
 	
 	pwm_init();
-	pwm_start();
 	
+	//only needed if started directly with twinkle (during coding)
+	//pwm_connect_pins();
+	//pwm_start();
+	//twinkle_setup(up,top,bottom,step,duty);
+	
+	sos_setup(&sos_count, &sos_stage);
 
 	while(1)
 	{
@@ -291,10 +319,29 @@ int main(void)
 							case OFF:
 							pwm_connect_pins();
 							pwm_start();
+							for(i=0;i<4;i++)
+							{
+								set_duty(i,on_brightness);
+							}
 							mode = ON;
 							break;
 							
 							case ON:
+							pwm_connect_pins();
+							pwm_start();
+							twinkle_setup(up,top,bottom,step,duty);
+							mode = TWINKLE;
+							break;
+							
+							case TWINKLE:
+							pwm_stop();
+							pwm_disconnect_pins();
+							set_all_led_pins(0);
+							sos_setup(&sos_count, &sos_stage);
+							mode = SOS;
+							break;
+							
+							case SOS:
 							pwm_stop();
 							pwm_disconnect_pins();
 							set_all_led_pins(0);
@@ -315,8 +362,11 @@ int main(void)
 				
 				break;
 				
-				
 				case ON:
+				
+				break;
+				
+				case TWINKLE:
 				// calculate led output
 				for(i=0; i<4; i++)
 				{
@@ -354,6 +404,89 @@ int main(void)
 					}
 					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 					
+				}
+				break;
+				
+				case SOS:
+				switch(sos_stage)
+				{
+					case 0: //first short burst
+					sos_temp = sos_count/SOS_DIT_LENGTH;
+					if(sos_temp >= 6)
+					{
+						sos_count = 0;
+						sos_stage = 1;
+						set_all_led_pins(0);
+					}
+					else
+					{
+						if(sos_temp % 2)
+						{
+							set_all_led_pins(0);
+						}
+						else
+						{
+							set_all_led_pins(1);
+						}
+						sos_count++;
+					}
+					break;
+					
+					case 1: //long burst
+					sos_temp = sos_count/(3*SOS_DIT_LENGTH);
+					if(sos_temp >= 6)
+					{
+						sos_count = 0;
+						sos_stage = 2;
+						set_all_led_pins(0);
+					}
+					else
+					{
+						if(sos_temp % 2)
+						{
+							set_all_led_pins(0);
+						}
+						else
+						{
+							set_all_led_pins(1);
+						}
+						sos_count++;
+					}
+					break;
+					
+					case 2: //second short burst
+					sos_temp = sos_count/SOS_DIT_LENGTH;
+					if(sos_temp >= 5)
+					{
+						sos_count = 0;
+						sos_stage = 3;
+						set_all_led_pins(0);
+					}
+					else
+					{
+						if(sos_temp % 2)
+						{
+							set_all_led_pins(0);
+						}
+						else
+						{
+							set_all_led_pins(1);
+						}
+						sos_count++;
+					}
+					break;
+					
+					case 3: //pause
+					if(sos_count >= (SOS_DIT_LENGTH*7))
+					{
+						sos_count = 0;
+						sos_stage = 0;
+					}
+					else
+					{
+						sos_count++;
+					}
+					break;
 				}
 				break;
 			}

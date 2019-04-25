@@ -77,7 +77,7 @@ void wait_1ms(uint16_t factor)
 
 void timer0_pwm_init(void)
 {
-	TCCR0A = 0b10100011;
+	TCCR0A = 0b00000011;
 	TCCR0B = 0b00000000;
 	TIMSK0 = 0b00000000;
 
@@ -88,7 +88,7 @@ void timer0_pwm_init(void)
 
 void timer1_pwm_init(void)
 {
-	TCCR1A = 0b10100001;
+	TCCR1A = 0b00000001;
 	TCCR1B = 0b00001000;
 	TIMSK1 = 0b00000000;
 
