@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <avr/interrupt.h>
+#include <avr/wdt.h>
 #include <util/twi.h>
 #include "utils.h"
 #include "twi.h"
@@ -141,7 +142,21 @@ int main(void)
 	uint16_t step[4], duty[4];
 	uint16_t imu_count, imu_max_count;
 	uint8_t turnover, turnover_old, leds_on;
-
+	uint8_t watchdog_reset;
+	
+	
+	if(MCUSR & (1<<WDRF))
+	{
+		watchdog_reset = 1; //watchdog reset occurred!
+	}
+	else
+	{
+		watchdog_reset = 0;
+	}
+	MCUSR = 0x0F;
+	
+	WDTCSR |= (1<<WDCE) | (1<<WDE); //start watchdog write sequence
+	WDTCSR = (1<<WDE) | (1<<WDP2) | (1<<WDP1) | (1<<WDP0); //2s timeout
 	
 	
 	DDRD |= (1<<DDD6); //OC0A / D6
@@ -169,6 +184,7 @@ int main(void)
 	//disable digital buffer of ADC3 - ADC0
 	DIDR0 = 0b00001111; 
 	
+	
 	twi_init();
 	wait_1ms(1);
 	
@@ -178,8 +194,6 @@ int main(void)
 	gyro_init();
 	wait_1ms(1);
 	
-	
-	pwm_init();
 
 	for(i=0;i<4;i++)
 	{
@@ -189,14 +203,25 @@ int main(void)
 
 		up[i] = 1;
 		duty[i] = 0;
-
-		set_duty(i,bottom[i]);
 	}
 	
 	sei();
 	
 	timer2_int_5ms_init();
 	timer2_int_5ms_start();
+	
+	if(watchdog_reset)
+	{
+		for(i=0;i<20;i++)
+		{
+			set_all_led_pins(1);
+			wait_isr_count(20);
+			set_all_led_pins(0);
+			wait_isr_count(20);
+			asm("wdr");
+		}
+	}
+	
 
 	imu_max_count = 10; 
 	imu_count = 0;
@@ -230,6 +255,8 @@ int main(void)
 					{
 						if(turnover) //entering menu
 						{
+							while(1);
+							
 							connected = are_pwm_pins_connected();
 							pwm_disconnect_pins();
 							for(i=0;i<5;i++)
@@ -328,6 +355,7 @@ int main(void)
 			}
 			//PORTB &= ~(1<<DDB0);
 		}
+		asm("wdr");
 	}
 }
 
