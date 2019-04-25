@@ -17,8 +17,8 @@
 #include "itg3205.h"
 
 
-#define MIN_RAMP_STEP 200
-#define MAX_RAMP_STEP 400
+#define MIN_RAMP_STEP 400
+#define MAX_RAMP_STEP 800
 #define RAMP_BOTTOM 10
 #define MIN_RAMP_TOP 200
 #define MAX_RAMP_TOP 250
@@ -28,7 +28,13 @@
 #define LAMBDA 0.1f
 #define TURNOVER_THRESHOLD 220
 
+typedef enum
+{
+	OFF,
+	ON
+}mode_t;
 
+mode_t mode = ON;
 
 volatile uint8_t isr_flag = 0;
 
@@ -73,18 +79,67 @@ uint8_t get_turnover_state(int16_t y)
 }
 
 
+int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* tap)
+{
+	int8_t err;
+	
+	err = accel_y(y);
+	if(err)
+	{
+		return -1;
+	}
+	
+	*turnover = get_turnover_state(*y);
 
+	err = accel_tap(tap);
+	if(err)
+	{
+		return -2;
+	}
+
+	
+	return 0;
+}
+
+void wait_isr_count(uint16_t count)
+{
+	uint16_t i;
+	
+	for(i=0; i<count; i++)
+	{
+		while(!isr_flag);
+		isr_flag = 0;
+	}
+}
+
+void set_all_led_pins(uint8_t value)
+{
+	if(value)
+	{
+		PORTB |= (1<<PORTB1);
+		PORTB |= (1<<PORTB2);
+		PORTD |= (1<<PORTD6);
+		PORTD |= (1<<PORTD5);
+	}
+	else
+	{
+		PORTB &= ~(1<<PORTB1);
+		PORTB &= ~(1<<PORTB2);
+		PORTD &= ~(1<<PORTD6);
+		PORTD &= ~(1<<PORTD5);
+	}
+}
 
 
 int main(void)
 {
 	int8_t err;
 	int16_t y;
-	uint8_t tap;
+	uint8_t tap, connected;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
-	uint16_t accel_count, accel_max_count;
+	uint16_t imu_count, imu_max_count;
 	uint8_t turnover, turnover_old, leds_on;
 
 	
@@ -139,18 +194,20 @@ int main(void)
 	}
 	
 	sei();
-// 	timer2_int_2ms_init();  //higher data acquisition rate
-// 	timer2_int_2ms_start();
 	
 	timer2_int_5ms_init();
 	timer2_int_5ms_start();
 
-	accel_max_count = 10; 
-	accel_count = 0;
+	imu_max_count = 10; 
+	imu_count = 0;
 	
 	turnover = 0;
 	turnover_old = 0;
 	leds_on = 0;
+	
+	pwm_init();
+	pwm_start();
+	
 
 	while(1)
 	{
@@ -158,78 +215,119 @@ int main(void)
 		{
 			isr_flag = 0;
 			//PORTB |= (1<<DDB0);
-			// calculate led output
-			for(i=0; i<4; i++)
+			
+			// get imu data
+			imu_count++;
+			if(imu_count >= imu_max_count)
 			{
-				if(up[i])
+				imu_count = 0;
+				
+				err = read_imu(&y, &turnover, &tap);
+				if(err == 0)
 				{
-					if((UINT16_MAX-duty[i])<step[i])
+					
+					if(turnover != turnover_old)
 					{
-						duty[i] = UINT16_MAX;
-						up[i] = 0;
-
-						//NEW CALCULATION
-						step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
-						bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
+						if(turnover) //entering menu
+						{
+							connected = are_pwm_pins_connected();
+							pwm_disconnect_pins();
+							for(i=0;i<5;i++)
+							{
+								set_all_led_pins(1);
+								wait_isr_count(20);
+								set_all_led_pins(0);
+								wait_isr_count(20);
+							}
+							if(connected)
+							{
+								pwm_connect_pins();
+							}
+							
+						}
+						else //leaving menu
+						{
+							
+						
+						}
+						turnover_old = turnover;
 					}
-					else
+					
+					if(turnover && tap)
 					{
-						duty[i] += step[i];
+						switch(mode)
+						{
+							case OFF:
+							pwm_connect_pins();
+							pwm_start();
+							mode = ON;
+							break;
+							
+							case ON:
+							pwm_stop();
+							pwm_disconnect_pins();
+							set_all_led_pins(0);
+							mode = OFF;
+							break;
+						}
 					}
 				}
-				else
-				{
-					if((duty[i])<step[i])
-					{
-						duty[i] = 0;
-						up[i] = 1;
-
-						//NEW CALCULATION
-						step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
-						top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
-					}
-					else
-					{
-						duty[i] -= step[i];
-					}
-				}
-				set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 				
 			}
 			
-			// get sensor data
-			accel_count++;
-			if(accel_count >= accel_max_count)
+			
+			
+			//display based on mode
+			switch(mode)
 			{
-				accel_count = 0;
-				err = accel_y(&y);
-				turnover = get_turnover_state(y);
-				if(turnover && !turnover_old)
+				case OFF:
+				
+				break;
+				
+				
+				case ON:
+				// calculate led output
+				for(i=0; i<4; i++)
 				{
-					if(leds_on)
+					if(up[i])
 					{
-						leds_on = 0;
-						pwm_stop();
-						
+						if((UINT16_MAX-duty[i])<step[i])
+						{
+							duty[i] = UINT16_MAX;
+							up[i] = 0;
+
+							//NEW CALCULATION
+							step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+							bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
+						}
+						else
+						{
+							duty[i] += step[i];
+						}
 					}
 					else
 					{
-						leds_on = 1;
-						pwm_init();
-						pwm_start();
+						if((duty[i])<step[i])
+						{
+							duty[i] = 0;
+							up[i] = 1;
+
+							//NEW CALCULATION
+							step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+							top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+						}
+						else
+						{
+							duty[i] -= step[i];
+						}
 					}
+					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
+					
 				}
-				turnover_old = turnover;
-				
-				err = accel_tap(&tap);
-				if(tap)
-				{
-					PORTB |= (1<<DDB0);
-					PORTB &= ~(1<<DDB0);
-				}
-				
+				break;
 			}
 			//PORTB &= ~(1<<DDB0);
 		}
 	}
 }
+
