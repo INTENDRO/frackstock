@@ -127,7 +127,22 @@ void timer0_pwm_start(void)
 void timer0_pwm_stop(void)
 {
 	TCCR0B &= ~0x07;
+// 	TCCR0A = 0;
+// 	TCNT0 = 0;
+// 	PORTD &= ~(1<<PORTD6);
+// 	PORTD &= ~(1<<PORTD5);
 }
+
+void timer0_connect_pwm_to_pins(void)
+{
+	TCCR0A |= 0b10100000;
+}
+
+void timer0_disconnect_pwm_from_pins(void)
+{
+	TCCR0A &= ~0b11110000;
+}
+
 
 void timer1_pwm_start(void)
 {
@@ -137,6 +152,20 @@ void timer1_pwm_start(void)
 void timer1_pwm_stop(void)
 {
 	TCCR1B &= ~0x07;
+// 	TCCR1A = 0;
+// 	TCNT1 = 0;
+// 	PORTB &= ~(1<<PORTB1);
+// 	PORTB &= ~(1<<PORTB2);
+}
+
+void timer1_connect_pwm_to_pins(void)
+{
+	TCCR1A |= 0b10100000;
+}
+
+void timer1_disconnect_pwm_from_pins(void)
+{
+	TCCR1A &= ~0b11110000;
 }
 
 void set_duty(uint8_t num, uint8_t duty)
@@ -180,16 +209,30 @@ void pwm_stop(void)
 {
 	timer0_pwm_stop();
 	timer1_pwm_stop();
+}
 
-	TCCR0A = 0;
-	TCNT0 = 0;
+void pwm_connect_pins(void)
+{
+	timer0_connect_pwm_to_pins();
+	timer1_connect_pwm_to_pins();
+}
 
-	TCCR1A = 0;
-	TCNT1 = 0;
-	PORTD &= ~(1<<PORTD6);
-	PORTD &= ~(1<<PORTD5);
-	PORTB &= ~(1<<PORTB1);
-	PORTB &= ~(1<<PORTB2);
+void pwm_disconnect_pins(void)
+{
+	timer0_disconnect_pwm_from_pins();
+	timer1_disconnect_pwm_from_pins();
+}
+
+uint8_t are_pwm_pins_connected(void)
+{
+	if((TCCR0A&0xF0) || (TCCR1A&0xF0))
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 
