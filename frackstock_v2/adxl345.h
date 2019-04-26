@@ -52,7 +52,7 @@ int8_t accel_x(int16_t* value);
 int8_t accel_y(int16_t* value);
 int8_t accel_z(int16_t* value);
 int8_t accel_xyz(int16_t* x, int16_t* y, int16_t* z);
-int8_t accel_tap(uint8_t* tap);
+int8_t accel_tap(uint8_t* single_tap, uint8_t* double_tap);
 int8_t accel_enable_tap(void);
 int8_t accel_disable_tap(void);
 

@@ -51,7 +51,7 @@ int8_t accel_init(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -3;
+		return -4;
 	}
 	
 	
@@ -61,7 +61,7 @@ int8_t accel_init(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -4;
+		return -5;
 	}
 	
 	send[0] = DUR;
@@ -70,7 +70,25 @@ int8_t accel_init(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -5;
+		return -6;
+	}
+
+	send[0] = LATENT;
+	send[1] = 80; //x * 1.25ms
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -7;
+	}
+
+	send[0] = WINDOW;
+	send[1] = 240; //x * 1.25ms
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -8;
 	}
 	
 	send[0] = INT_MAP;
@@ -79,16 +97,16 @@ int8_t accel_init(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -6;
+		return -9;
 	}
 	
 	send[0] = INT_ENABLE;
-	send[1] = 0b01000000; //single tap: 0b01000000
+	send[1] = 0b01100000; //single & double tap: 0b01100000
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -7;
+		return -10;
 	}
 	
 	send[0] = POWER_CTL;
@@ -97,7 +115,7 @@ int8_t accel_init(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
-		return -8;
+		return -11;
 	}
 	
 	return 0;
@@ -260,7 +278,7 @@ int8_t accel_xyz(int16_t* x, int16_t* y, int16_t* z)
 
 
 
-int8_t accel_tap(uint8_t* tap)
+int8_t accel_tap(uint8_t* single_tap, uint8_t* double_tap)
 {
 	twi_report_t* twi_report;
 	uint8_t send[1];
@@ -287,11 +305,20 @@ int8_t accel_tap(uint8_t* tap)
 	
 	if(twi_report->data[0] & 0x40)
 	{
-		*tap = 1;
+		*single_tap = 1;
 	}
 	else
 	{
-		*tap = 0;
+		*single_tap = 0;
+	}
+
+	if(twi_report->data[0] & 0x20)
+	{
+		*double_tap = 1;
+	}
+	else
+	{
+		*double_tap = 0;
 	}
 	
 	return 0;
@@ -302,17 +329,17 @@ int8_t accel_enable_tap(void)
 {
 	uint8_t send[2];
 	twi_report_t* twi_report;
-	uint8_t tap;
+	uint8_t single_tap, double_tap;
 	int8_t err;
 	
-	err = accel_tap(&tap);
+	err = accel_tap(&single_tap, &double_tap);
 	if(err)
 	{
 		return -1;
 	}
 	
 	send[0] = INT_ENABLE;
-	send[1] = 0b01000000; //single tap
+	send[1] = 0b01100000; //single & double tap
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
@@ -328,7 +355,7 @@ int8_t accel_disable_tap(void)
 	
 	
 	send[0] = INT_ENABLE;
-	send[1] = 0b00000000; //single tap
+	send[1] = 0b00000000;
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
