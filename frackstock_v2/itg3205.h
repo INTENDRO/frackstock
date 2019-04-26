@@ -15,6 +15,8 @@
 #define PWR_MGM		0x3E
 
 int8_t gyro_init(void);
+int8_t gyro_enable(void);
+int8_t gyro_disable(void);
 
 
 #endif /* ITG3205_H_ */

@@ -5,6 +5,19 @@
  * Author : Mario
  */ 
 
+
+
+/*
+TO DO:
+- test if gyro_enable & gyro_disable really turn it off and on
+
+
+
+
+
+
+*/
+
 #include <avr/io.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -31,7 +44,8 @@
 #define SOS_DIT_LENGTH 30
 
 #define LAMBDA 0.1f
-#define TURNOVER_THRESHOLD 220
+#define TURNOVER_THRESHOLD_ON 220
+#define TURNOVER_THRESHOLD_OFF 50
 
 
 typedef enum
@@ -67,7 +81,7 @@ int16_t clamp(int16_t value, int16_t min, int16_t max)
 	return value;
 }
 
-uint8_t get_turnover_state(int16_t y)
+uint8_t get_turnover_state(int16_t y, uint8_t current_state)
 {
 	int16_t y_filt;
 	
@@ -76,18 +90,33 @@ uint8_t get_turnover_state(int16_t y)
 	//set_duty(0,Map(y,-512,511,0,255)); //debug output
 	//set_duty(1,Map(y_filt,-512,511,0,255));
 
-	if(y_filt > TURNOVER_THRESHOLD)
+	if(current_state)
 	{
-		return 1;
+		if(y_filt < TURNOVER_THRESHOLD_OFF)
+		{
+			return 0;
+		}
+		else
+		{
+			return 1;
+		}
 	}
 	else
 	{
-		return 0;
+		if(y_filt > TURNOVER_THRESHOLD_ON)
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
 	}
+	
 }
 
 
-int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap)
+int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap, uint8_t current_turnover_state)
 {
 	int8_t err;
 	
@@ -97,7 +126,7 @@ int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* dou
 		return -1;
 	}
 	
-	*turnover = get_turnover_state(*y);
+	*turnover = get_turnover_state(*y, current_turnover_state);
 
 	err = accel_tap(single_tap, double_tap);
 	if(err)
@@ -171,6 +200,7 @@ int main(void)
 	uint16_t step[4], duty[4];
 	uint16_t imu_count, imu_max_count;
 	uint8_t turnover, turnover_old;
+	uint8_t adjustmode;
 	uint8_t watchdog_reset;
 	uint8_t on_brightness = ON_BRIGHTNESS_DEFAULT;
 	uint16_t sos_count, sos_temp;
@@ -257,6 +287,7 @@ int main(void)
 	
 	turnover = 0;
 	turnover_old = 0;
+	adjustmode = 0;
 	
 	pwm_init();
 	
@@ -290,7 +321,7 @@ int main(void)
 			{
 				imu_count = 0;
 				
-				err = read_imu(&y, &turnover, &single_tap, &double_tap);
+				err = read_imu(&y, &turnover, &single_tap, &double_tap, turnover);
 				if(err == 0)
 				{
 					
@@ -315,7 +346,9 @@ int main(void)
 						}
 						else //leaving menu
 						{
-							
+							adjustmode = 0;
+							gyro_disable();
+							PORTB &= ~(1<<DDB0);
 						
 						}
 						turnover_old = turnover;
@@ -323,21 +356,37 @@ int main(void)
 
 					if(turnover && double_tap)
 					{
-						connected = are_pwm_pins_connected();
-						pwm_disconnect_pins();
-						for(i=0;i<2;i++)
+						if(mode == ON)
 						{
-							set_all_led_pins(1);
-							wait_isr_count(20);
-							set_all_led_pins(0);
-							wait_isr_count(20);
-						}
-						if(connected)
-						{
-							pwm_connect_pins();
-						}
+							connected = are_pwm_pins_connected();
+							pwm_disconnect_pins();
+							for(i=0;i<2;i++)
+							{
+								set_all_led_pins(1);
+								wait_isr_count(20);
+								set_all_led_pins(0);
+								wait_isr_count(20);
+							}
+							if(connected)
+							{
+								pwm_connect_pins();
+							}
+
+							if(adjustmode)
+							{
+								adjustmode = 0;
+								gyro_disable();
+								PORTB &= ~(1<<DDB0);
+							}
+							else
+							{
+								adjustmode = 1;
+								gyro_enable();
+								PORTB |= (1<<DDB0);
+							}
+						}	
 					}
-					else if(turnover && single_tap)
+					else if(turnover && single_tap && !adjustmode)
 					{
 						switch(mode)
 						{
