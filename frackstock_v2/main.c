@@ -34,6 +34,12 @@ subtracted from on_brightness (bad reading after leaving sleep?)
 
 #define MIN_RAMP_STEP 400
 #define MAX_RAMP_STEP 800
+
+#define RAMP_STEP_MEAN_DEFAULT 6000
+#define RAMP_STEP_MEAN_MIN 300
+#define RAMP_STEP_MEAN_MAX 2000
+#define RAMP_STEP_SIGMA 200
+
 #define RAMP_BOTTOM 10
 #define MIN_RAMP_TOP 200
 #define MAX_RAMP_TOP 250
@@ -184,13 +190,13 @@ void set_all_led_pins(uint8_t value)
 }
 
 
-void twinkle_setup(uint8_t* up, uint8_t* top, uint8_t* bottom, uint16_t* step, uint16_t* duty)
+void twinkle_setup(uint8_t* up, uint8_t* top, uint8_t* bottom, uint16_t* step, uint16_t* duty, uint16_t ramp_step_mean)
 {
 	uint8_t i;
 	
 	for(i=0;i<4;i++)
 	{
-		step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+		step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
 		top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
 		bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 
@@ -215,6 +221,7 @@ int main(void)
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
+	uint16_t ramp_step_mean = RAMP_STEP_MEAN_DEFAULT;
 	uint16_t accel_count, accel_max_count;
 	uint16_t gyro_count, gyro_max_count;
 	uint8_t turnover, turnover_old;
@@ -299,6 +306,7 @@ int main(void)
 			asm("wdr");
 		}
 	}
+	
 	
 
 	accel_max_count = 10; 
@@ -389,7 +397,7 @@ int main(void)
 
 					if(turnover && double_tap)
 					{
-						if(mode == ON)
+						if((mode == ON) || (mode == TWINKLE))
 						{
 							connected = are_pwm_pins_connected();
 							pwm_disconnect_pins();
@@ -436,7 +444,7 @@ int main(void)
 							case ON:
 							pwm_connect_pins();
 							pwm_start();
-							twinkle_setup(up,top,bottom,step,duty);
+							twinkle_setup(up,top,bottom,step,duty,ramp_step_mean);
 							mode = TWINKLE;
 							break;
 							
@@ -468,6 +476,31 @@ int main(void)
 				{
 					switch(mode)
 					{
+						case TWINKLE:
+						if(y_velocity>0)
+						{
+							if((RAMP_STEP_MEAN_MAX-ramp_step_mean) >= y_velocity)
+							{
+								ramp_step_mean += y_velocity;
+							}
+							else
+							{
+								ramp_step_mean = RAMP_STEP_MEAN_MAX;
+							}
+						}
+						else
+						{
+							if((ramp_step_mean-RAMP_STEP_MEAN_MIN) >= (-y_velocity))
+							{
+								ramp_step_mean += y_velocity;
+							}
+							else
+							{
+								ramp_step_mean = RAMP_STEP_MEAN_MIN;
+							}
+						}
+						break;
+						
 						case ON:
 						if(y_velocity>0)
 						{
@@ -526,7 +559,7 @@ int main(void)
 							up[i] = 0;
 
 							//NEW CALCULATION
-							step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+							step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
 							bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 						}
 						else
@@ -542,7 +575,7 @@ int main(void)
 							up[i] = 1;
 
 							//NEW CALCULATION
-							step[i] = get_rand(MIN_RAMP_STEP,MAX_RAMP_STEP);
+							step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
 							top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
 						}
 						else
