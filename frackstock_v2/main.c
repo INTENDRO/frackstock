@@ -35,10 +35,12 @@ subtracted from on_brightness (bad reading after leaving sleep?)
 #define MIN_RAMP_STEP 400
 #define MAX_RAMP_STEP 800
 
-#define RAMP_STEP_MEAN_DEFAULT 6000
+#define RAMP_STEP_MEAN_DEFAULT 600
 #define RAMP_STEP_MEAN_MIN 300
 #define RAMP_STEP_MEAN_MAX 2000
-#define RAMP_STEP_SIGMA 200
+#define RAMP_STEP_SIGMA 0.0f
+//#define RAMP_STEP_GYRO_DIVISOR ((UINT16_MAX)/(RAMP_STEP_MEAN_MAX-RAMP_STEP_MEAN_MIN))
+#define RAMP_STEP_GYRO_DIVISOR ((UINT16_MAX)/(RAMP_STEP_MEAN_MAX-300))
 
 #define RAMP_BOTTOM 10
 #define MIN_RAMP_TOP 200
@@ -196,7 +198,7 @@ void twinkle_setup(uint8_t* up, uint8_t* top, uint8_t* bottom, uint16_t* step, u
 	
 	for(i=0;i<4;i++)
 	{
-		step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
+		step[i] = get_rand(ramp_step_mean*(1-RAMP_STEP_SIGMA), ramp_step_mean*(1+RAMP_STEP_SIGMA)+1);
 		top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
 		bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 
@@ -477,6 +479,7 @@ int main(void)
 					switch(mode)
 					{
 						case TWINKLE:
+						y_velocity /= RAMP_STEP_GYRO_DIVISOR; //!!!!!!!!!!!!!!!!!!!!!!
 						if(y_velocity>0)
 						{
 							if((RAMP_STEP_MEAN_MAX-ramp_step_mean) >= y_velocity)
@@ -549,7 +552,7 @@ int main(void)
 				
 				case TWINKLE:
 				// calculate led output
-				for(i=0; i<4; i++)
+				for(i=0; i<3; i++)
 				{
 					if(up[i])
 					{
@@ -559,7 +562,7 @@ int main(void)
 							up[i] = 0;
 
 							//NEW CALCULATION
-							step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
+							step[i] = get_rand(ramp_step_mean*(1-RAMP_STEP_SIGMA), ramp_step_mean*(1+RAMP_STEP_SIGMA)+1);
 							bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
 						}
 						else
@@ -575,7 +578,7 @@ int main(void)
 							up[i] = 1;
 
 							//NEW CALCULATION
-							step[i] = get_rand(ramp_step_mean-RAMP_STEP_SIGMA, ramp_step_mean+RAMP_STEP_SIGMA);
+							step[i] = get_rand(ramp_step_mean*(1-RAMP_STEP_SIGMA), ramp_step_mean*(1+RAMP_STEP_SIGMA)+1);
 							top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
 						}
 						else
@@ -586,6 +589,8 @@ int main(void)
 					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 					
 				}
+				//set_duty(3,Map(ramp_step_mean,RAMP_STEP_MEAN_MIN,RAMP_STEP_MEAN_MAX,0,UINT8_MAX)); !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				//set_duty(3,Map((uint16_t)RAMP_STEP_GYRO_DIVISOR,0,100,0,UINT8_MAX));
 				break;
 				
 				case SOS:
