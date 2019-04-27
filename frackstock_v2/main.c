@@ -116,7 +116,7 @@ uint8_t get_turnover_state(int16_t y, uint8_t current_state)
 }
 
 
-int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap, uint8_t current_turnover_state)
+int8_t read_accel(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap, uint8_t current_turnover_state)
 {
 	int8_t err;
 	
@@ -134,6 +134,19 @@ int8_t read_imu(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* dou
 		return -2;
 	}
 
+	
+	return 0;
+}
+
+int8_t read_gyro(int16_t* y)
+{
+	int8_t err;
+	
+	err = gyro_y(y);
+	if(err)
+	{
+		return -1;
+	}
 	
 	return 0;
 }
@@ -193,12 +206,13 @@ void sos_setup(uint16_t* count, uint8_t* stage)
 int main(void)
 {
 	int8_t err;
-	int16_t y;
+	int16_t y, y_velocity;
 	uint8_t single_tap, double_tap, connected;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
-	uint16_t imu_count, imu_max_count;
+	uint16_t accel_count, accel_max_count;
+	uint16_t gyro_count, gyro_max_count;
 	uint8_t turnover, turnover_old;
 	uint8_t adjustmode;
 	uint8_t watchdog_reset;
@@ -282,8 +296,8 @@ int main(void)
 	}
 	
 
-	imu_max_count = 10; 
-	imu_count = 0;
+	accel_max_count = 10; 
+	accel_count = 0;
 	
 	turnover = 0;
 	turnover_old = 0;
@@ -307,21 +321,23 @@ int main(void)
 	
 	//only needed if started directly with sos (during coding)
 	//sos_setup(&sos_count, &sos_stage);
+	
+	gyro_enable();
 
 	while(1)
 	{
 		if(isr_flag)
 		{
 			isr_flag = 0;
-			//PORTB |= (1<<DDB0);
+			PORTB |= (1<<DDB0);
 			
 			// get imu data
-			imu_count++;
-			if(imu_count >= imu_max_count)
+			accel_count++;
+			if(accel_count >= accel_max_count)
 			{
-				imu_count = 0;
+				accel_count = 0;
 				
-				err = read_imu(&y, &turnover, &single_tap, &double_tap, turnover);
+				err = read_accel(&y, &turnover, &single_tap, &double_tap, turnover);
 				if(err == 0)
 				{
 					
@@ -424,12 +440,23 @@ int main(void)
 						}
 					}
 				}
-				
+			}
+			
+			if(accel_count == 1)
+			{
+				err = read_gyro(&y_velocity);
+				if(err == 0)
+				{
+					for(i=0;i<4;i++)
+					{
+						set_duty(i,Map(y_velocity,INT16_MIN,INT16_MAX,0,UINT8_MAX));
+					}
+				}
 			}
 			
 			
-			
 			//display based on mode
+			/*
 			switch(mode)
 			{
 				case OFF:
@@ -563,8 +590,8 @@ int main(void)
 					break;
 				}
 				break;
-			}
-			//PORTB &= ~(1<<DDB0);
+			}*/
+			PORTB &= ~(1<<DDB0);
 		}
 		asm("wdr");
 	}

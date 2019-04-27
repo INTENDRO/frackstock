@@ -78,3 +78,98 @@ int8_t gyro_disable(void)
 	}
 	return 0;
 }
+
+int8_t gyro_x(int16_t* value)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = GYRO_XOUT_H;
+	twi_write(ITG3205_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	
+	twi_read(ITG3205_ADDRESS, 2, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 2)
+	{
+		return -3;
+	}
+	
+	*value = (int16_t)((((uint16_t)(twi_report->data[0]))<<8) | ((uint16_t)(twi_report->data[1])));
+	
+	return 0;
+}
+
+int8_t gyro_y(int16_t* value)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = GYRO_YOUT_H;
+	twi_write(ITG3205_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	
+	twi_read(ITG3205_ADDRESS, 2, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 2)
+	{
+		return -3;
+	}
+	
+	*value = (int16_t)((((uint16_t)(twi_report->data[0]))<<8) | ((uint16_t)(twi_report->data[1])));
+	
+	return 0;
+}
+
+int8_t gyro_z(int16_t* value)
+{
+	twi_report_t* twi_report;
+	uint8_t send[1];
+	
+	send[0] = GYRO_ZOUT_H;
+	twi_write(ITG3205_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -1;
+	}
+	
+	twi_read(ITG3205_ADDRESS, 2, NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	if(twi_report->length != 2)
+	{
+		return -3;
+	}
+	
+	*value = (int16_t)((((uint16_t)(twi_report->data[0]))<<8) | ((uint16_t)(twi_report->data[1])));
+	
+	return 0;
+}
+
+int8_t gyro_xyz(int16_t* x, int16_t* y, int16_t* z)
+{
+	
+}

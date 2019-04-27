@@ -30,6 +30,10 @@
 int8_t gyro_init(void);
 int8_t gyro_enable(void);
 int8_t gyro_disable(void);
+int8_t gyro_x(int16_t* value);
+int8_t gyro_y(int16_t* value);
+int8_t gyro_z(int16_t* value);
+int8_t gyro_xyz(int16_t* x, int16_t* y, int16_t* z);
 
 
 #endif /* ITG3205_H_ */
