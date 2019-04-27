@@ -11,7 +11,8 @@
 TO DO:
 - test if gyro_enable & gyro_disable really turn it off and on
 
-
+- after turning on gyro: somehow receiving INT16_MIN. this gets
+subtracted from on_brightness (bad reading after leaving sleep?)
 
 
 
@@ -39,13 +40,15 @@ TO DO:
 #define MIN_RAMP_BOTTOM 30
 #define MAX_RAMP_BOTTOM 50
 
-#define ON_BRIGHTNESS_DEFAULT 100
+#define ON_BRIGHTNESS_DEFAULT 32000
 
 #define SOS_DIT_LENGTH 30
 
 #define LAMBDA 0.1f
 #define TURNOVER_THRESHOLD_ON 220
 #define TURNOVER_THRESHOLD_OFF 50
+
+#define SINGLE_TAP_IGNORE_DURATION 4
 
 
 typedef enum
@@ -208,6 +211,7 @@ int main(void)
 	int8_t err;
 	int16_t y, y_velocity;
 	uint8_t single_tap, double_tap, connected;
+	uint8_t single_tap_ignore;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
@@ -215,8 +219,9 @@ int main(void)
 	uint16_t gyro_count, gyro_max_count;
 	uint8_t turnover, turnover_old;
 	uint8_t adjustmode;
+	uint16_t adjust_level;
 	uint8_t watchdog_reset;
-	uint8_t on_brightness = ON_BRIGHTNESS_DEFAULT;
+	uint16_t on_brightness = ON_BRIGHTNESS_DEFAULT;
 	uint16_t sos_count, sos_temp;
 	uint8_t sos_stage;
 	
@@ -302,6 +307,9 @@ int main(void)
 	turnover = 0;
 	turnover_old = 0;
 	adjustmode = 0;
+	adjust_level = 0;
+	
+	single_tap_ignore = 0;
 	
 	pwm_init();
 	
@@ -310,7 +318,7 @@ int main(void)
 	pwm_start();
 	for(i=0;i<4;i++)
 	{
-		set_duty(i,on_brightness);
+		set_duty(i,Map(on_brightness, 0, UINT16_MAX, 0, UINT8_MAX));
 	}
 
 
@@ -322,20 +330,29 @@ int main(void)
 	//only needed if started directly with sos (during coding)
 	//sos_setup(&sos_count, &sos_stage);
 	
-	gyro_enable();
 
 	while(1)
 	{
 		if(isr_flag)
 		{
 			isr_flag = 0;
-			PORTB |= (1<<DDB0);
+			//PORTB |= (1<<DDB0);
 			
 			// get imu data
 			accel_count++;
 			if(accel_count >= accel_max_count)
 			{
 				accel_count = 0;
+				
+				if(single_tap_ignore)
+				{
+					single_tap_ignore--;
+					PORTB |= (1<<PORTB0);
+				}
+				else
+				{
+					PORTB &= ~(1<<PORTB0);
+				}
 				
 				err = read_accel(&y, &turnover, &single_tap, &double_tap, turnover);
 				if(err == 0)
@@ -364,7 +381,7 @@ int main(void)
 						{
 							adjustmode = 0;
 							gyro_disable();
-							PORTB &= ~(1<<DDB0);
+							//PORTB &= ~(1<<DDB0);
 						
 						}
 						turnover_old = turnover;
@@ -392,17 +409,17 @@ int main(void)
 							{
 								adjustmode = 0;
 								gyro_disable();
-								PORTB &= ~(1<<DDB0);
+								//PORTB &= ~(1<<DDB0);
 							}
 							else
 							{
 								adjustmode = 1;
 								gyro_enable();
-								PORTB |= (1<<DDB0);
+								//PORTB |= (1<<DDB0);
 							}
 						}	
 					}
-					else if(turnover && single_tap && !adjustmode)
+					else if(turnover && single_tap && !single_tap_ignore && !adjustmode)
 					{
 						switch(mode)
 						{
@@ -411,7 +428,7 @@ int main(void)
 							pwm_start();
 							for(i=0;i<4;i++)
 							{
-								set_duty(i,on_brightness);
+								set_duty(i,Map(on_brightness, 0, UINT16_MAX, 0, UINT8_MAX));
 							}
 							mode = ON;
 							break;
@@ -438,25 +455,52 @@ int main(void)
 							mode = OFF;
 							break;
 						}
+						
+						single_tap_ignore = SINGLE_TAP_IGNORE_DURATION;
 					}
 				}
 			}
 			
-			if(accel_count == 1)
+			if((accel_count == 1) && (adjustmode))
 			{
 				err = read_gyro(&y_velocity);
 				if(err == 0)
 				{
-					for(i=0;i<4;i++)
+					switch(mode)
 					{
-						set_duty(i,Map(y_velocity,INT16_MIN,INT16_MAX,0,UINT8_MAX));
+						case ON:
+						if(y_velocity>0)
+						{
+							if((UINT16_MAX-on_brightness) >= y_velocity)
+							{
+								on_brightness += y_velocity;
+							}
+							else
+							{
+								on_brightness = UINT16_MAX;
+							}
+						}
+						else
+						{
+							if(on_brightness >= (-y_velocity))
+							{
+								on_brightness += y_velocity;
+							}
+							else
+							{
+								on_brightness = 0;
+							}
+						}
+						break;
 					}
+					
+					
 				}
 			}
 			
 			
 			//display based on mode
-			/*
+			
 			switch(mode)
 			{
 				case OFF:
@@ -464,7 +508,10 @@ int main(void)
 				break;
 				
 				case ON:
-				
+				for(i=0;i<4;i++)
+				{
+					set_duty(i,Map(on_brightness, 0, UINT16_MAX, 0, UINT8_MAX));
+				}
 				break;
 				
 				case TWINKLE:
@@ -590,8 +637,8 @@ int main(void)
 					break;
 				}
 				break;
-			}*/
-			PORTB &= ~(1<<DDB0);
+			}
+			//PORTB &= ~(1<<DDB0);
 		}
 		asm("wdr");
 	}
