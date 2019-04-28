@@ -39,8 +39,6 @@ subtracted from on_brightness (bad reading after leaving sleep?)
 #define RAMP_STEP_MEAN_MIN 300
 #define RAMP_STEP_MEAN_MAX 2000
 #define RAMP_STEP_SIGMA 0.0f
-//#define RAMP_STEP_GYRO_DIVISOR ((UINT16_MAX)/(RAMP_STEP_MEAN_MAX-RAMP_STEP_MEAN_MIN))
-#define RAMP_STEP_GYRO_DIVISOR ((UINT16_MAX)/(RAMP_STEP_MEAN_MAX-300))
 
 #define RAMP_BOTTOM 10
 #define MIN_RAMP_TOP 200
@@ -223,7 +221,7 @@ int main(void)
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
-	uint16_t ramp_step_mean = RAMP_STEP_MEAN_DEFAULT;
+	uint16_t ramp_step_mean, ramp_step_mean_fullscale;
 	uint16_t accel_count, accel_max_count;
 	uint16_t gyro_count, gyro_max_count;
 	uint8_t turnover, turnover_old;
@@ -320,6 +318,9 @@ int main(void)
 	adjust_level = 0;
 	
 	single_tap_ignore = 0;
+	
+	ramp_step_mean = RAMP_STEP_MEAN_DEFAULT;
+	ramp_step_mean_fullscale = Map(RAMP_STEP_MEAN_DEFAULT, RAMP_STEP_MEAN_MIN, RAMP_STEP_MEAN_MAX, 0, UINT16_MAX);
 	
 	pwm_init();
 	
@@ -479,29 +480,30 @@ int main(void)
 					switch(mode)
 					{
 						case TWINKLE:
-						y_velocity /= RAMP_STEP_GYRO_DIVISOR; //!!!!!!!!!!!!!!!!!!!!!!
 						if(y_velocity>0)
 						{
-							if((RAMP_STEP_MEAN_MAX-ramp_step_mean) >= y_velocity)
+							if((UINT16_MAX-ramp_step_mean_fullscale) >= y_velocity)
 							{
-								ramp_step_mean += y_velocity;
+								ramp_step_mean_fullscale += y_velocity;
 							}
 							else
 							{
-								ramp_step_mean = RAMP_STEP_MEAN_MAX;
+								ramp_step_mean_fullscale = UINT16_MAX;
 							}
 						}
 						else
 						{
-							if((ramp_step_mean-RAMP_STEP_MEAN_MIN) >= (-y_velocity))
+							if(ramp_step_mean_fullscale >= (-y_velocity))
 							{
-								ramp_step_mean += y_velocity;
+								ramp_step_mean_fullscale += y_velocity;
 							}
 							else
 							{
-								ramp_step_mean = RAMP_STEP_MEAN_MIN;
+								ramp_step_mean_fullscale = 0;
 							}
 						}
+						ramp_step_mean = Map(ramp_step_mean_fullscale, 0, UINT16_MAX, RAMP_STEP_MEAN_MIN, RAMP_STEP_MEAN_MAX);
+						
 						break;
 						
 						case ON:
@@ -552,7 +554,7 @@ int main(void)
 				
 				case TWINKLE:
 				// calculate led output
-				for(i=0; i<3; i++)
+				for(i=0; i<4; i++)
 				{
 					if(up[i])
 					{
@@ -589,8 +591,6 @@ int main(void)
 					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 					
 				}
-				//set_duty(3,Map(ramp_step_mean,RAMP_STEP_MEAN_MIN,RAMP_STEP_MEAN_MAX,0,UINT8_MAX)); !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				//set_duty(3,Map((uint16_t)RAMP_STEP_GYRO_DIVISOR,0,100,0,UINT8_MAX));
 				break;
 				
 				case SOS:
