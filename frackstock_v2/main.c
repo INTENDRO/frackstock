@@ -38,7 +38,7 @@ subtracted from on_brightness (bad reading after leaving sleep?)
 #define RAMP_STEP_MEAN_DEFAULT 600
 #define RAMP_STEP_MEAN_MIN 300
 #define RAMP_STEP_MEAN_MAX 2000
-#define RAMP_STEP_SIGMA 0.0f
+#define RAMP_STEP_SIGMA 0.5f
 
 #define RAMP_BOTTOM 10
 #define MIN_RAMP_TOP 200
@@ -619,8 +619,8 @@ int main(void)
 					break;
 					
 					case 1: //long burst
-					sos_temp = sos_count/(3*SOS_DIT_LENGTH);
-					if(sos_temp >= 6)
+					sos_temp = sos_count/(SOS_DIT_LENGTH);
+					if(sos_temp >= 12)
 					{
 						sos_count = 0;
 						sos_stage = 2;
@@ -628,7 +628,7 @@ int main(void)
 					}
 					else
 					{
-						if(sos_temp % 2)
+						if((sos_temp % 4) == 3)
 						{
 							set_all_led_pins(0);
 						}
