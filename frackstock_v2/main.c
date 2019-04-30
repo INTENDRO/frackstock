@@ -55,6 +55,7 @@ subtracted from on_brightness (bad reading after leaving sleep?)
 #define TURNOVER_THRESHOLD_OFF 50
 
 #define SINGLE_TAP_IGNORE_DURATION 4
+#define DOUBLE_TAP_IGNORE_DURATION 4
 
 
 typedef enum
@@ -217,7 +218,7 @@ int main(void)
 	int8_t err;
 	int16_t y, y_velocity;
 	uint8_t single_tap, double_tap, connected;
-	uint8_t single_tap_ignore;
+	uint8_t single_tap_ignore, double_tap_ignore;
 	uint16_t i;
 	uint8_t up[4],top[4],bottom[4];
 	uint16_t step[4], duty[4];
@@ -365,6 +366,16 @@ int main(void)
 					PORTB &= ~(1<<PORTB0);
 				}
 				
+				if(double_tap_ignore)
+				{
+					double_tap_ignore--;
+					PORTB |= (1<<PORTB0);
+				}
+				else
+				{
+					PORTB &= ~(1<<PORTB0);
+				}
+				
 				err = read_accel(&y, &turnover, &single_tap, &double_tap, turnover);
 				if(err == 0)
 				{
@@ -398,10 +409,23 @@ int main(void)
 						turnover_old = turnover;
 					}
 
-					if(turnover && double_tap)
+					if(turnover && double_tap && !double_tap_ignore)
 					{
 						if((mode == ON) || (mode == TWINKLE))
 						{
+							if(adjustmode)
+							{
+								adjustmode = 0;
+								gyro_disable();
+								//PORTB &= ~(1<<DDB0);
+							}
+							else
+							{
+								adjustmode = 1;
+								gyro_enable();
+								//PORTB |= (1<<DDB0);
+							}
+							
 							connected = are_pwm_pins_connected();
 							pwm_disconnect_pins();
 							for(i=0;i<2;i++)
@@ -415,20 +439,9 @@ int main(void)
 							{
 								pwm_connect_pins();
 							}
-
-							if(adjustmode)
-							{
-								adjustmode = 0;
-								gyro_disable();
-								//PORTB &= ~(1<<DDB0);
-							}
-							else
-							{
-								adjustmode = 1;
-								gyro_enable();
-								//PORTB |= (1<<DDB0);
-							}
-						}	
+						}
+						single_tap_ignore = SINGLE_TAP_IGNORE_DURATION;
+						double_tap_ignore = DOUBLE_TAP_IGNORE_DURATION;
 					}
 					else if(turnover && single_tap && !single_tap_ignore && !adjustmode)
 					{
@@ -468,6 +481,7 @@ int main(void)
 						}
 						
 						single_tap_ignore = SINGLE_TAP_IGNORE_DURATION;
+						double_tap_ignore = DOUBLE_TAP_IGNORE_DURATION;
 					}
 				}
 			}
