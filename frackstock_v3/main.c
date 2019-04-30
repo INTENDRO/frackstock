@@ -14,10 +14,12 @@
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/twi.h>
+#include <math.h>
 #include "utils.h"
 #include "twi.h"
 #include "adxl345.h"
 #include "itg3205.h"
+#include "hmc5883l.h"
 
 
 #define MIN_RAMP_STEP 400
@@ -51,12 +53,15 @@ typedef enum
 	OFF,
 	ON,
 	TWINKLE,
-	SOS
+	SOS,
+	COMPASS
 }mode_t;
 
 mode_t mode = ON;
 
 volatile uint8_t isr_flag = 0;
+
+volatile int16_t mag_x_min, mag_x_max, mag_y_min, mag_y_max;
 
 ISR(TIMER2_COMPA_vect)
 {
@@ -149,6 +154,70 @@ int8_t read_gyro(int16_t* y)
 	return 0;
 }
 
+int8_t read_mag(int16_t* heading)
+{
+	int8_t err;
+	int16_t x,y,z;
+	float heading_rad;
+	int16_t x_calib, y_calib;
+	
+	err = mag_xyz(&x,&y,&z);
+	if(err)
+	{
+		return -1;
+	}
+	
+	if((x == -4096) || (y == -4096) || (z == -4096))
+	{
+		return -2;
+	}
+	
+	if(x < mag_x_min)
+	{
+		mag_x_min = x;
+	}
+	
+	if(x > mag_x_max)
+	{
+		mag_x_max = x;
+	}
+	
+	if(y < mag_y_min)
+	{
+		mag_y_min = y;
+	}
+	
+	if(y > mag_y_max)
+	{
+		mag_y_max = y;
+	}
+	
+// 	if(x == 0)
+// 	{
+// 		x = 1;
+// 	}
+	
+	//x_calib = ((x - mag_x_min)/(mag_x_max - mag_x_min))-0.5;
+	//y_calib = ((y - mag_y_min)/(mag_y_max - mag_y_min))-0.5;
+	
+	//x_calib = Map(x, mag_x_min, mag_x_max, -500, 500);
+	//y_calib = Map(y, mag_y_min, mag_y_max, -500, 500);
+	
+	//heading_rad = atan2(y_calib, x_calib);
+	
+	
+	//*heading = (int16_t)(heading_rad*180/3.141);
+	
+	//*heading = mag_x_min;
+	
+	//*heading = (int16_t)(heading_rad*1000);
+	
+	//*heading = (int16_t)(x_calib);
+	*heading = x;
+	
+	return 0;
+}
+
 void wait_isr_count(uint16_t count)
 {
 	uint16_t i;
@@ -220,6 +289,7 @@ int main(void)
 	uint16_t on_brightness = ON_BRIGHTNESS_DEFAULT;
 	uint16_t sos_count, sos_temp;
 	uint8_t sos_stage;
+	uint16_t heading;
 	
 	
 	
@@ -277,6 +347,9 @@ int main(void)
 	gyro_init();
 	wait_1ms(1);
 	
+	mag_init();
+	wait_1ms(1);
+	
 	
 	
 	sei();
@@ -305,6 +378,8 @@ int main(void)
 	turnover_old = 0;
 	adjustmode = 0;
 	adjust_level = 0;
+	
+	heading = 10;
 	
 	single_tap_ignore = 0;
 	
@@ -347,21 +422,21 @@ int main(void)
 				if(single_tap_ignore)
 				{
 					single_tap_ignore--;
-					PORTB |= (1<<PORTB0);
+					//PORTB |= (1<<PORTB0);
 				}
 				else
 				{
-					PORTB &= ~(1<<PORTB0);
+					//PORTB &= ~(1<<PORTB0);
 				}
 				
 				if(double_tap_ignore)
 				{
 					double_tap_ignore--;
-					PORTB |= (1<<PORTB0);
+					//PORTB |= (1<<PORTB0);
 				}
 				else
 				{
-					PORTB &= ~(1<<PORTB0);
+					//PORTB &= ~(1<<PORTB0);
 				}
 				
 				err = read_accel(&y, &turnover, &single_tap, &double_tap, turnover);
@@ -461,6 +536,22 @@ int main(void)
 							break;
 							
 							case SOS:
+							mag_enable();
+							mag_x_min = INT16_MAX;
+							mag_x_max = INT16_MIN;
+							mag_y_min = INT16_MAX;
+							mag_y_max = INT16_MIN;
+							pwm_connect_pins();
+							pwm_start();
+							for(i=0;i<4;i++)
+							{
+								set_duty(i,Map(heading, 0, 359, 0, UINT8_MAX));
+							}
+							mode = COMPASS;
+							break;
+							
+							case COMPASS:
+							mag_disable();
 							pwm_stop();
 							pwm_disconnect_pins();
 							set_all_led_pins(0);
@@ -536,6 +627,14 @@ int main(void)
 					
 					
 				}
+			}
+			
+			if((accel_count == 2) && (mode == COMPASS))
+			{
+				PORTB |= (1<<DDB0);
+				err = read_mag(&heading);
+				heading = Map(heading,-2048,2047,0,359);
+				PORTB &= ~(1<<DDB0);
 			}
 			
 			
@@ -676,6 +775,13 @@ int main(void)
 					}
 					break;
 				}
+				break;
+				
+				case COMPASS:
+				for(i=0;i<4;i++)
+				{
+					set_duty(i,Map(heading, 0, 359, 0, UINT8_MAX));
+				}	
 				break;
 			}
 			//PORTB &= ~(1<<DDB0);
