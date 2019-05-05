@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <avr/interrupt.h>
 #include <avr/wdt.h>
 #include <util/twi.h>
@@ -61,6 +62,7 @@ typedef enum
 	OFF,
 	ON,
 	TWINKLE,
+	ACCEL,
 	SOS
 }mode_t;
 
@@ -87,6 +89,17 @@ int16_t clamp(int16_t value, int16_t min, int16_t max)
 	if(value>max) value = max;
 	if(value<min) value = min;
 	return value;
+}
+
+int16_t get_diff(int16_t value)
+{
+	static int16_t last_value = 0;
+	int16_t diff;
+	
+	diff = value-last_value;
+	last_value = value;
+	
+	return diff;
 }
 
 uint8_t get_turnover_state(int16_t y, uint8_t current_state)
@@ -124,7 +137,7 @@ uint8_t get_turnover_state(int16_t y, uint8_t current_state)
 }
 
 
-int8_t read_accel(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap, uint8_t current_turnover_state)
+int8_t read_accel(int16_t* y, int16_t* y_diff, uint8_t* turnover, uint8_t* single_tap, uint8_t* double_tap, uint8_t current_turnover_state)
 {
 	int8_t err;
 	
@@ -135,6 +148,8 @@ int8_t read_accel(int16_t* y, uint8_t* turnover, uint8_t* single_tap, uint8_t* d
 	}
 	
 	*turnover = get_turnover_state(*y, current_turnover_state);
+	
+	*y_diff = get_diff(*y);
 
 	err = accel_tap(single_tap, double_tap);
 	if(err)
@@ -214,7 +229,7 @@ void sos_setup(uint16_t* count, uint8_t* stage)
 int main(void)
 {
 	int8_t err;
-	int16_t y, y_velocity;
+	int16_t y, y_temp, y_diff, y_velocity;
 	uint8_t single_tap, double_tap, connected;
 	uint8_t single_tap_ignore, double_tap_ignore;
 	uint16_t i;
@@ -374,7 +389,7 @@ int main(void)
 					PORTB &= ~(1<<PORTB0);
 				}
 				
-				err = read_accel(&y, &turnover, &single_tap, &double_tap, turnover);
+				err = read_accel(&y, &y_diff, &turnover, &single_tap, &double_tap, turnover);
 				if(err == 0)
 				{
 					
@@ -463,6 +478,16 @@ int main(void)
 							break;
 							
 							case TWINKLE:
+							pwm_connect_pins();
+							pwm_start();
+							for(i=0;i<4;i++)
+							{
+								set_duty(i,0);
+							}
+							mode = ACCEL;
+							break;
+							
+							case ACCEL:
 							pwm_stop();
 							pwm_disconnect_pins();
 							set_all_led_pins(0);
@@ -602,6 +627,14 @@ int main(void)
 					}
 					set_duty(i,Map(duty[i],0,UINT16_MAX,bottom[i],top[i]));
 					
+				}
+				break;
+				
+				case ACCEL:
+				y_temp = clamp(y_diff, -500, 500);
+				for(i=0; i<4; i++)
+				{
+					set_duty(i,Map(abs(y_temp), 0, 500, 0, UINT8_MAX));
 				}
 				break;
 				
