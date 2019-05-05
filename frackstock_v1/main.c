@@ -3,6 +3,9 @@
  *
  * Created: 21/04/2019 12:19:57
  * Author : Mario
+ * 
+ * code base: frackstock
+ * - turnover test
  */ 
 
 #include <avr/io.h>

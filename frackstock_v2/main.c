@@ -1,8 +1,17 @@
 /*
- * frackstock_v1.c
+ * frackstock_v2.c
  *
  * Created: 21/04/2019 12:19:57
  * Author : Mario
+ *
+ * code base: frackstock_v1
+ * - OFF
+ * - ON
+ * - TWINKLE
+ * - SOS
+ * - tap and doubletap works
+ * - turning to increase/decrease settings
+ * 
  */ 
 
 

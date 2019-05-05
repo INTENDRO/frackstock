@@ -1,8 +1,12 @@
 /*
- * frackstock_v1.c
+ * frackstock_v3.c
  *
  * Created: 21/04/2019 12:19:57
  * Author : Mario
+ *
+ * code base: frackstock_v2
+ * - reading magnetometer (not working yet)
+ *
  */ 
 
 

@@ -3,6 +3,10 @@
  *
  * Created: 16/04/2019 21:42:56
  * Author : Mario
+ *
+ * - Flicker (Twinkle) Test
+ * - Accelerometer Test
+ *
  */ 
 
 #include <avr/io.h>
