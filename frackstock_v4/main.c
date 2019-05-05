@@ -54,6 +54,9 @@
 #define ACCEL_TWINKLE_LAMBDA 0.001f
 #define ACCEL_TWINKLE_ABS_RANGE 250 // maximum expected output of accelerometer (absolute)
 
+#define ACCEL_THRESH_THRESHOLD 200
+#define ACCEL_THRESH_STEP 600
+
 #define SOS_DIT_LENGTH 30
 
 #define TURNOVER_LAMBDA 0.1f
@@ -71,6 +74,7 @@ typedef enum
 	TWINKLE,
 	ACCEL,
 	ACCEL_TWINKLE,
+	ACCEL_THRESH,
 	SOS
 }mode_t;
 
@@ -263,6 +267,8 @@ int main(void)
 	uint16_t on_brightness = ON_BRIGHTNESS_DEFAULT;
 	int16_t accel_output, accel_temp, accel_output_filt = 0;
 	int16_t accel_twinkle_output, accel_twinkle_temp, accel_twinkle_output_filt = 0;
+	int16_t accel_thresh_output;
+	uint16_t accel_thresh_count;
 	uint16_t sos_count, sos_temp;
 	uint8_t sos_stage;
 	
@@ -515,6 +521,17 @@ int main(void)
 							break;
 							
 							case ACCEL_TWINKLE:
+							pwm_connect_pins();
+							pwm_start();
+							for(i=0;i<4;i++)
+							{
+								set_duty(i,0);
+							}
+							accel_thresh_count = 0;
+							mode = ACCEL_THRESH;
+							break;
+							
+							case ACCEL_THRESH:
 							pwm_stop();
 							pwm_disconnect_pins();
 							set_all_led_pins(0);
@@ -717,6 +734,33 @@ int main(void)
 					set_duty(i,max(Map(duty[i],0,UINT16_MAX,bottom[i],top[i]),accel_twinkle_temp));
 					
 				}
+				break;
+				
+				case ACCEL_THRESH:
+				//accel_thresh_output = clamp(y_diff, -2*ACCEL_TWINKLE_ABS_RANGE, 2*ACCEL_TWINKLE_ABS_RANGE);
+				//accel_thresh_output = abs(accel_thresh_output);
+				
+				accel_thresh_output = clamp(y_diff, 0, 2*ACCEL_TWINKLE_ABS_RANGE);
+							
+				if(accel_thresh_output>ACCEL_THRESH_THRESHOLD)
+				{
+					accel_thresh_count = UINT16_MAX;
+				}
+				else if(accel_thresh_count >= ACCEL_THRESH_STEP)
+				{
+					accel_thresh_count -= ACCEL_THRESH_STEP;
+				}
+				else
+				{
+					accel_thresh_count = 0;
+				}
+				
+				for(i=0; i<4; i++)
+				{
+					set_duty(i, Map(accel_thresh_count,0,UINT16_MAX,0,UINT8_MAX));
+				}
+				
+				
 				break;
 				
 				case SOS:
