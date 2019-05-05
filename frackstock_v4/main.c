@@ -51,6 +51,9 @@
 #define ACCEL_MIN_BRIGHTNESS 10
 #define ACCEL_ABS_RANGE 250 // maximum expected output of accelerometer (absolute)
 
+#define ACCEL_TWINKLE_LAMBDA 0.001f
+#define ACCEL_TWINKLE_ABS_RANGE 250 // maximum expected output of accelerometer (absolute)
+
 #define SOS_DIT_LENGTH 30
 
 #define TURNOVER_LAMBDA 0.1f
@@ -67,6 +70,7 @@ typedef enum
 	ON,
 	TWINKLE,
 	ACCEL,
+	ACCEL_TWINKLE,
 	SOS
 }mode_t;
 
@@ -257,7 +261,8 @@ int main(void)
 	uint16_t adjust_level;
 	uint8_t watchdog_reset;
 	uint16_t on_brightness = ON_BRIGHTNESS_DEFAULT;
-	int16_t accel_output, accel_output_filt = 0;
+	int16_t accel_output, accel_temp, accel_output_filt = 0;
+	int16_t accel_twinkle_output, accel_twinkle_temp, accel_twinkle_output_filt = 0;
 	uint16_t sos_count, sos_temp;
 	uint8_t sos_stage;
 	
@@ -439,7 +444,7 @@ int main(void)
 
 					if(turnover && double_tap && !double_tap_ignore)
 					{
-						if((mode == ON) || (mode == TWINKLE))
+						if((mode == ON) || (mode == TWINKLE) || (mode == ACCEL_TWINKLE))
 						{
 							if(adjustmode)
 							{
@@ -497,12 +502,19 @@ int main(void)
 							pwm_start();
 							for(i=0;i<4;i++)
 							{
-								set_duty(i,0);
+								set_duty(i,ACCEL_MIN_BRIGHTNESS);
 							}
 							mode = ACCEL;
 							break;
 							
 							case ACCEL:
+							pwm_connect_pins();
+							pwm_start();
+							twinkle_setup(up,top,bottom,step,duty,ramp_step_mean);
+							mode = ACCEL_TWINKLE;
+							break;
+							
+							case ACCEL_TWINKLE:
 							pwm_stop();
 							pwm_disconnect_pins();
 							set_all_led_pins(0);
@@ -532,6 +544,7 @@ int main(void)
 					switch(mode)
 					{
 						case TWINKLE:
+						case ACCEL_TWINKLE:
 						if(y_velocity>0)
 						{
 							if((UINT16_MAX-ramp_step_mean_fullscale) >= y_velocity)
@@ -648,17 +661,63 @@ int main(void)
 				case ACCEL:
 				accel_output = clamp(y_diff, -2*ACCEL_ABS_RANGE, 2*ACCEL_ABS_RANGE);
 				accel_output = abs(accel_output);
-				accel_output = Map(accel_output, 0, 2*ACCEL_ABS_RANGE, 0, UINT8_MAX);
-				accel_output = max(ACCEL_MIN_BRIGHTNESS, accel_output);
 				accel_output_filt = lowpass(ACCEL_LAMBDA, accel_output, accel_output_filt);
+				accel_temp = Map(accel_output_filt, 0, 2*ACCEL_ABS_RANGE, 0, UINT8_MAX);
+				accel_temp = max(ACCEL_MIN_BRIGHTNESS, accel_temp);
+				
 				
 				for(i=0; i<4; i++)
 				{
-					set_duty(i,accel_output_filt);
+					set_duty(i,accel_temp);
 				}
 				break;
 				
+				case ACCEL_TWINKLE:
+				accel_twinkle_output = clamp(y_diff, -2*ACCEL_TWINKLE_ABS_RANGE, 2*ACCEL_TWINKLE_ABS_RANGE);
+				accel_twinkle_output = abs(accel_twinkle_output);
+				accel_twinkle_output_filt = lowpass(ACCEL_TWINKLE_LAMBDA, accel_twinkle_output, accel_twinkle_output_filt);
+				accel_twinkle_temp = Map(accel_twinkle_output_filt, 0, 2*ACCEL_TWINKLE_ABS_RANGE, 0, UINT8_MAX);
 				
+				// calculate led output
+				for(i=0; i<4; i++)
+				{
+					if(up[i])
+					{
+						if((UINT16_MAX-duty[i])<step[i])
+						{
+							duty[i] = UINT16_MAX;
+							up[i] = 0;
+
+							//NEW CALCULATION
+							step[i] = get_rand(ramp_step_mean*(1-RAMP_STEP_SIGMA), ramp_step_mean*(1+RAMP_STEP_SIGMA)+1);
+							bottom[i] = get_rand(MIN_RAMP_BOTTOM, MAX_RAMP_BOTTOM);
+						}
+						else
+						{
+							duty[i] += step[i];
+						}
+					}
+					else
+					{
+						if((duty[i])<step[i])
+						{
+							duty[i] = 0;
+							up[i] = 1;
+
+							//NEW CALCULATION
+							step[i] = get_rand(ramp_step_mean*(1-RAMP_STEP_SIGMA), ramp_step_mean*(1+RAMP_STEP_SIGMA)+1);
+							top[i] = get_rand(MIN_RAMP_TOP, MAX_RAMP_TOP);
+						}
+						else
+						{
+							duty[i] -= step[i];
+						}
+					}
+					
+					set_duty(i,max(Map(duty[i],0,UINT16_MAX,bottom[i],top[i]),accel_twinkle_temp));
+					
+				}
+				break;
 				
 				case SOS:
 				switch(sos_stage)
