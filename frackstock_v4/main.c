@@ -47,9 +47,13 @@
 
 #define ON_BRIGHTNESS_DEFAULT 32000
 
+#define ACCEL_LAMBDA 0.001f
+#define ACCEL_MIN_BRIGHTNESS 10
+#define ACCEL_ABS_RANGE 250 // maximum expected output of accelerometer (absolute)
+
 #define SOS_DIT_LENGTH 30
 
-#define LAMBDA 0.1f
+#define TURNOVER_LAMBDA 0.1f
 #define TURNOVER_THRESHOLD_ON 220
 #define TURNOVER_THRESHOLD_OFF 50
 
@@ -76,12 +80,10 @@ ISR(TIMER2_COMPA_vect)
 }
 
 
-int16_t lowpass(int16_t value)
+int16_t lowpass(float lambda, int16_t new_value, int16_t old_value)
 {
-	static int16_t output = 0;
-
-	output += (int16_t)(LAMBDA * (float)(value - output));
-	return output;
+	old_value += (int16_t)(TURNOVER_LAMBDA * (float)(new_value - old_value));
+	return old_value;
 }
 
 int16_t clamp(int16_t value, int16_t min, int16_t max)
@@ -89,6 +91,18 @@ int16_t clamp(int16_t value, int16_t min, int16_t max)
 	if(value>max) value = max;
 	if(value<min) value = min;
 	return value;
+}
+
+int16_t max(int16_t a, int16_t b)
+{
+	if(a>b)
+	{
+		return a;
+	}
+	else
+	{
+		return b;
+	}
 }
 
 int16_t get_diff(int16_t value)
@@ -104,10 +118,10 @@ int16_t get_diff(int16_t value)
 
 uint8_t get_turnover_state(int16_t y, uint8_t current_state)
 {
-	int16_t y_filt;
+	static int16_t y_filt = 0;
 	
 	y = clamp(y,-512, 511);
-	y_filt = lowpass(y);
+	y_filt = lowpass(TURNOVER_LAMBDA, y, y_filt);
 	//set_duty(0,Map(y,-512,511,0,255)); //debug output
 	//set_duty(1,Map(y_filt,-512,511,0,255));
 
@@ -229,7 +243,7 @@ void sos_setup(uint16_t* count, uint8_t* stage)
 int main(void)
 {
 	int8_t err;
-	int16_t y, y_temp, y_diff, y_velocity;
+	int16_t y, y_diff, y_velocity;
 	uint8_t single_tap, double_tap, connected;
 	uint8_t single_tap_ignore, double_tap_ignore;
 	uint16_t i;
@@ -243,6 +257,7 @@ int main(void)
 	uint16_t adjust_level;
 	uint8_t watchdog_reset;
 	uint16_t on_brightness = ON_BRIGHTNESS_DEFAULT;
+	int16_t accel_output, accel_output_filt = 0;
 	uint16_t sos_count, sos_temp;
 	uint8_t sos_stage;
 	
@@ -631,12 +646,19 @@ int main(void)
 				break;
 				
 				case ACCEL:
-				y_temp = clamp(y_diff, -500, 500);
+				accel_output = clamp(y_diff, -2*ACCEL_ABS_RANGE, 2*ACCEL_ABS_RANGE);
+				accel_output = abs(accel_output);
+				accel_output = Map(accel_output, 0, 2*ACCEL_ABS_RANGE, 0, UINT8_MAX);
+				accel_output = max(ACCEL_MIN_BRIGHTNESS, accel_output);
+				accel_output_filt = lowpass(ACCEL_LAMBDA, accel_output, accel_output_filt);
+				
 				for(i=0; i<4; i++)
 				{
-					set_duty(i,Map(abs(y_temp), 0, 500, 0, UINT8_MAX));
+					set_duty(i,accel_output_filt);
 				}
 				break;
+				
+				
 				
 				case SOS:
 				switch(sos_stage)
