@@ -658,9 +658,9 @@ int main(void)
 				//accel_thresh_output = clamp(y_diff, -2*ACCEL_TWINKLE_ABS_RANGE, 2*ACCEL_TWINKLE_ABS_RANGE);
 				//accel_thresh_output = abs(accel_thresh_output);
 				
-				accel_thresh_output = clamp(y_diff, 0, 2*ACCEL_TWINKLE_ABS_RANGE);
+				//accel_thresh_output = clamp(y_diff, 0, 2*ACCEL_TWINKLE_ABS_RANGE);
 							
-				if(accel_thresh_output>ACCEL_THRESH_THRESHOLD)
+				if(single_tap)
 				{
 					accel_thresh_count = UINT16_MAX;
 				}
