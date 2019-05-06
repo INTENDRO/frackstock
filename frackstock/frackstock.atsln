@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Atmel Studio Solution File, Format Version 11.00
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock", "frackstock.cproj", "{DCE6C7E3-EE26-4D79-826B-08594B9AD897}"
 EndProject
@@ -12,6 +12,8 @@ EndProject
 Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock_v3", "..\frackstock_v3\frackstock_v3.cproj", "{FA6D0393-5008-4B34-99FD-69EF15F91AEF}"
 EndProject
 Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock_v4", "..\frackstock_v4\frackstock_v4.cproj", "{927327ED-915D-4149-B884-9B79E8252586}"
+EndProject
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "frackstock_v5", "..\frackstock_v5\frackstock_v5.cproj", "{0242501E-9EAB-4141-849F-407D01EDDF5D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +41,10 @@ Global
 		{927327ED-915D-4149-B884-9B79E8252586}.Debug|AVR.Build.0 = Debug|AVR
 		{927327ED-915D-4149-B884-9B79E8252586}.Release|AVR.ActiveCfg = Release|AVR
 		{927327ED-915D-4149-B884-9B79E8252586}.Release|AVR.Build.0 = Release|AVR
+		{0242501E-9EAB-4141-849F-407D01EDDF5D}.Debug|AVR.ActiveCfg = Debug|AVR
+		{0242501E-9EAB-4141-849F-407D01EDDF5D}.Debug|AVR.Build.0 = Debug|AVR
+		{0242501E-9EAB-4141-849F-407D01EDDF5D}.Release|AVR.ActiveCfg = Release|AVR
+		{0242501E-9EAB-4141-849F-407D01EDDF5D}.Release|AVR.Build.0 = Release|AVR
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
