@@ -11,7 +11,9 @@
  * - SOS
  * - tap and doubletap works
  * - turning to increase/decrease settings
- * - acceleration mode
+ * - acceleration mode (differentiating the sensor output)
+ * - acceleration twinkle mode (differentiating the sensor output)
+ * - acceleration threshold mode (differentiating the sensor output)
  * 
  */ 
 
@@ -54,7 +56,7 @@
 #define ACCEL_TWINKLE_LAMBDA 0.001f
 #define ACCEL_TWINKLE_ABS_RANGE 250 // maximum expected output of accelerometer (absolute)
 
-#define ACCEL_THRESH_THRESHOLD 200
+#define ACCEL_THRESH_THRESHOLD 150
 #define ACCEL_THRESH_STEP 600
 
 #define SOS_DIT_LENGTH 30
