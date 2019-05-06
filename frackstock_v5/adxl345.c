@@ -101,7 +101,7 @@ int8_t accel_init(void)
 	}
 	
 	send[0] = INT_ENABLE;
-	send[1] = 0b01100000; //single & double tap: 0b01100000
+	send[1] = 0b00000000; //single & double tap: 0b01100000
 	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
@@ -325,7 +325,7 @@ int8_t accel_tap(uint8_t* single_tap, uint8_t* double_tap)
 }
 
 
-int8_t accel_enable_tap(void)
+int8_t accel_enable_menu_tap(void)
 {
 	uint8_t send[2];
 	twi_report_t* twi_report;
@@ -337,6 +337,61 @@ int8_t accel_enable_tap(void)
 	{
 		return -1;
 	}
+
+	send[0] = TAP_AXES;
+	send[1] = 0b00000101; // x- & z-axis
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -2;
+	}
+	
+	
+	send[0] = THRESH_TAP;
+	send[1] = 40; //x * 62.5mg
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -3;
+	}
+	
+	send[0] = DUR;
+	send[1] = 32; //x * 625us
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -4;
+	}
+
+	send[0] = LATENT;
+	send[1] = 80; //x * 1.25ms
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -5;
+	}
+
+	send[0] = WINDOW;
+	send[1] = 240; //x * 1.25ms
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -6;
+	}
+	
+	send[0] = INT_MAP;
+	send[1] = 0;
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -7;
+	}
 	
 	send[0] = INT_ENABLE;
 	send[1] = 0b01100000; //single & double tap
@@ -344,7 +399,67 @@ int8_t accel_enable_tap(void)
 	twi_report = twi_wait();
 	if(twi_report->error != 0)
 	{
+		return -8;
+	}
+}
+
+int8_t accel_enable_single_tap(void)
+{
+	uint8_t send[2];
+	twi_report_t* twi_report;
+	uint8_t single_tap, double_tap;
+	int8_t err;
+	
+	err = accel_tap(&single_tap, &double_tap);
+	if(err)
+	{
+		return -1;
+	}
+
+	send[0] = TAP_AXES;
+	send[1] = 0b00000010; // y-axis
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
 		return -2;
+	}
+	
+	
+	send[0] = THRESH_TAP;
+	send[1] = 160; //x * 62.5mg
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -3;
+	}
+	
+	send[0] = DUR;
+	send[1] = 32; //x * 625us
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -4;
+	}
+	
+	send[0] = INT_MAP;
+	send[1] = 0;
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -5;
+	}
+	
+	send[0] = INT_ENABLE;
+	send[1] = 0b01000000; //single tap
+	twi_write(ADXL345_ADDRESS, send, sizeof(send), NULL);
+	twi_report = twi_wait();
+	if(twi_report->error != 0)
+	{
+		return -6;
 	}
 }
 

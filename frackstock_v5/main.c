@@ -420,6 +420,7 @@ int main(void)
 					{
 						if(turnover) //entering menu
 						{
+							accel_enable_menu_tap();
 							connected = are_pwm_pins_connected();
 							pwm_disconnect_pins();
 							for(i=0;i<5;i++)
@@ -437,6 +438,7 @@ int main(void)
 						}
 						else //leaving menu
 						{
+							accel_enable_single_tap();
 							adjustmode = 0;
 							gyro_disable();
 							//PORTB &= ~(1<<DDB0);
