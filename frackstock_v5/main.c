@@ -165,6 +165,7 @@ int8_t read_accel(int16_t* y, int16_t* y_diff, uint8_t* turnover, uint8_t* singl
 	{
 		return -1;
 	}
+	*y = -(*y); //change the sign
 	
 	*turnover = get_turnover_state(*y, current_turnover_state);
 	
